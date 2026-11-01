@@ -1,28 +1,344 @@
-import * as THREE from 'three';
-import { Client, type Room } from 'colyseus.js';
-import { DT, move, orbs, speed, type Player, type Input } from '../shared/game';
-import './style.css';
-document.querySelector('#app')!.innerHTML = `<div id="hud"><div class="top"><div class="brand">VELOCITY RIFT<small>S P E E D B O U N D</small></div><div class="pill" id="connection">● OFFLINE</div></div><div id="stats"><div class="card stat"><small>STEPS</small><b id="steps">0</b></div><div class="card stat"><small>GEMS</small><b id="gems">0</b></div><div class="card stat"><small>SPEED</small><b id="speed">9</b></div></div><div class="card" id="roster"><strong>IN THIS WORLD</strong><div id="players">Connect to join</div></div><div id="toast"></div><div class="card level"><span id="level">LEVEL 1</span><progress id="xp" value="0" max="40"></progress><small>RUN • COLLECT • BECOME FASTER</small></div><div id="help">W A S D / ARROWS · Move &nbsp; SPACE · Jump<br>Drag to orbit · Scroll to zoom<br>Sunburst Plaza · Vyrnora Studios</div><button id="hello">Wave hello ♡</button></div><div id="entry"><div class="card"><small>VYRNORA STUDIOS PRESENTS</small><h1>CHASE YOUR<br><span>NEXT LIMIT.</span></h1><p>Welcome to Sunburst Plaza. Run with real players, chase glowing orbs, and find your speed.</p><input id="name" maxlength="18" placeholder="Your runner name" aria-label="Runner name"><button id="join">ENTER THE RIFT →</button><p id="error">Multiplayer foundation · Session progress only</p></div></div><div id="touch"><button data-key="a">←</button><button data-key="w">↑</button><button data-key="s">↓</button><button data-key="d">→</button></div><button id="jump">JUMP</button>`;
-const $ = (id: string) => document.getElementById(id)!;
-const scene = new THREE.Scene(); scene.background = new THREE.Color('#88cdd8'); scene.fog = new THREE.Fog('#88cdd8', 70, 170);
-const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, .1, 220);
-const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(innerWidth, innerHeight); renderer.setPixelRatio(Math.min(devicePixelRatio, 1.7)); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; document.body.prepend(renderer.domElement);
-scene.add(new THREE.HemisphereLight(0xe0ffff, 0x41777d, 2.4)); const sun = new THREE.DirectionalLight(0xfff0c9, 3); sun.position.set(25, 50, 15); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -65, right: 65, top: 65, bottom: -65 }); scene.add(sun);
-function box(w:number,h:number,d:number,color:number,x:number,y:number,z:number){const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({color,roughness:.8}));m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;scene.add(m);return m;}
-box(120,2,120,0x66b89c,0,-1,0);box(18,.08,116,0x365671,0,.04,0);box(116,.08,18,0x365671,0,.04,0);
-for(let i=0;i<4;i++){const a=i*Math.PI/2;box(120,1,1,0xf3e8c7,0,0,i<2?(i?59:-59):0).visible=i<2; if(i>=2)box(1,1,120,0xf3e8c7,i===2?-59:59,0,0);}
-for(let i=0;i<32;i++){const a=i*Math.PI/16,r=51+(i%2)*3,x=Math.sin(a)*r,z=Math.cos(a)*r;box(1,4,1,0x85715d,x,2,z);const tree=new THREE.Mesh(new THREE.ConeGeometry(3,7,6),new THREE.MeshStandardMaterial({color:i%2?0x299d83:0x5ab979}));tree.position.set(x,7,z);tree.castShadow=true;scene.add(tree);}
-for(let i=0;i<12;i++){const a=i*Math.PI/6,x=Math.sin(a)*75,z=Math.cos(a)*75;box(10,10+i%3*6,10,[0xf4c796,0x82afc0,0xc3a8db][i%3],x,3,z); for(let j=0;j<3;j++) for(let k=0;k<2;k++) { const w=box(1.3,1.8,.12,0xd7ffff,x-2+k*4,2+j*3,z+5.1); (w.material as THREE.MeshStandardMaterial).emissive.setHex(0x76c8d4); }}
-const ring = new THREE.Mesh(new THREE.TorusGeometry(6,.35,12,64),new THREE.MeshStandardMaterial({color:0xc7ff91,emissive:0x669d3b,emissiveIntensity:.5}));ring.position.set(0,8,-48);scene.add(ring);box(15,1,5,0x345970,0,.5,-48);
-const orbMeshes = orbs.map(o=>{const m=new THREE.Mesh(new THREE.IcosahedronGeometry(o.gold?.55:.38,1),new THREE.MeshStandardMaterial({color:o.gold?0xffd758:0x80f5ed,emissive:o.gold?0xbe711a:0x1b9c96,emissiveIntensity:.6}));m.position.set(o.x,1,o.z);scene.add(m);return m;});
-function avatar(p: Player){const g=new THREE.Group(); const material=new THREE.MeshStandardMaterial({color:new THREE.Color().setHSL([...p.id].reduce((a,c)=>a+c.charCodeAt(0),0)%100/100,.65,.55)});const limb=(w:number,h:number,d:number,x:number,y:number,z:number,mat=material)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);m.castShadow=true;g.add(m);return m;};limb(1,1.2,.6,0,1.7,0);limb(.85,.85,.85,0,2.75,0,new THREE.MeshStandardMaterial({color:0xffdfb9}));const legs=[limb(.35,.9,.4,-.27,.55,0),limb(.35,.9,.4,.27,.55,0)];const arms=[limb(.3,1,.35,-.7,1.65,0),limb(.3,1,.35,.7,1.65,0)];limb(.65,.24,.12,0,2.8,.45,new THREE.MeshStandardMaterial({color:0x16394e}));const c=document.createElement('canvas');c.width=256;c.height=64;const ctx=c.getContext('2d')!;ctx.fillStyle='#173c50';ctx.roundRect(0,0,256,64,20);ctx.fill();ctx.fillStyle='white';ctx.font='bold 25px sans-serif';ctx.textAlign='center';ctx.fillText(p.name,128,40);const label=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c)}));label.position.y=3.7;label.scale.set(3.3,.82,1);g.add(label);scene.add(g);return{g,legs,arms};}
-const avatars=new Map<string,ReturnType<typeof avatar>>();let states:Record<string,Player>={},local:Player|undefined,room:Room|undefined,seq=0,pending:Input[]=[],connected=false;
-const keys=new Set<string>();let yaw=0,distance=15,drag=false,jump=false,acc=0;const target=new THREE.Vector3();
-onkeydown=e=>{if((e.target as HTMLElement).tagName==='INPUT')return;if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();keys.add(e.key.toLowerCase());if(e.code==='Space'&&!e.repeat)jump=true;};onkeyup=e=>keys.delete(e.key.toLowerCase());onblur=()=>{keys.clear();jump=false;};
-renderer.domElement.onpointerdown=e=>{drag=true;renderer.domElement.setPointerCapture(e.pointerId);};renderer.domElement.onpointerup=()=>drag=false;renderer.domElement.onpointermove=e=>{if(drag)yaw-=e.movementX*.006;};renderer.domElement.onwheel=e=>distance=THREE.MathUtils.clamp(distance+e.deltaY*.015,8,25);
-for(const b of document.querySelectorAll<HTMLButtonElement>('[data-key]')){b.onpointerdown=e=>{b.setPointerCapture(e.pointerId);keys.add(b.dataset.key!);};b.onpointerup=b.onpointercancel=()=>keys.delete(b.dataset.key!);}$('jump').onpointerdown=()=>jump=true;
-let toastTimer:ReturnType<typeof setTimeout>;function toast(t:string){$('toast').textContent=t;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').textContent='',2200);}
-$('hello').onclick=()=>{if(connected)room?.send('hello');};
-$('join').onclick=async()=>{const b=$('join') as HTMLButtonElement;b.disabled=true;$('error').textContent='Connecting to multiplayer server…';try{const endpoint=(import.meta as unknown as {env:Record<string,string>}).env.VITE_SERVER_URL || `${location.protocol==='https:'?'wss':'ws'}://${location.hostname}:2567`;room=await new Client(endpoint).joinOrCreate('plaza',{name:($('name') as HTMLInputElement).value});seq=0;pending=[];local=undefined;connected=true;$('entry').style.display='none';room.onMessage('snapshot',(s:{players:Record<string,Player>;hidden:number[]})=>{states=s.players;const p=states[room!.sessionId];if(p){const previous=local?.level;pending=pending.filter(i=>i.seq>p.seq);local={...p};for(const i of pending)move(local,i);if(previous&&p.level>previous)toast(`LEVEL ${p.level} · SPEED UP!`);$('steps').textContent=Math.floor(p.steps).toLocaleString();$('gems').textContent=String(p.gems);$('speed').textContent=speed(p).toFixed(1);$('level').textContent=`LEVEL ${p.level}`;const xp=$('xp') as HTMLProgressElement;xp.max=p.level*40;xp.value=p.xp;}$('connection').textContent=`● CONNECTED · ${Object.keys(states).length}/20`;$('players').replaceChildren(...Object.values(states).sort((a,b)=>b.level-a.level).map(p=>{const d=document.createElement('div');d.textContent=`${p.name} · Lv ${p.level}`;return d;}));orbMeshes.forEach((m,i)=>m.visible=!s.hidden.includes(i));});room.onMessage('pickup',(v:{player:string;gold:boolean})=>{if(v.player===room?.sessionId)toast(v.gold?'+3 GEMS · +15 XP':'+10 STEPS · +10 XP');});room.onMessage('emote',(v:{id:string;text:string})=>toast(`${states[v.id]?.name || 'Runner'}: ${v.text}`));room.onLeave(()=>{connected=false;keys.clear();pending=[];$('connection').textContent='● DISCONNECTED';$('entry').style.display='grid';$('error').textContent='Connection ended. Rejoin starts a new session.';b.disabled=false;});}catch(e){$('error').textContent=`Could not join: ${e instanceof Error?e.message:'server unavailable'}`;b.disabled=false;}};
-const clock=new THREE.Clock();function frame(){requestAnimationFrame(frame);const dt=Math.min(clock.getDelta(),.1),t=clock.elapsedTime;acc+=dt;if(!connected)acc=0;while(acc>=DT&&connected&&local&&room){acc-=DT;const x=Number(keys.has('d')||keys.has('arrowright'))-Number(keys.has('a')||keys.has('arrowleft')),z=Number(keys.has('s')||keys.has('arrowdown'))-Number(keys.has('w')||keys.has('arrowup'));const input={seq:seq++,x:x*Math.cos(yaw)+z*Math.sin(yaw),z:z*Math.cos(yaw)-x*Math.sin(yaw),jump};const n=Math.max(1,Math.hypot(input.x,input.z));input.x/=n;input.z/=n;jump=false;room.send('input',input);pending.push(input);if(pending.length>100)pending.shift();move(local,input);}for(const [id,p]of Object.entries(states)){let a=avatars.get(id);if(!a){a=avatar(p);avatars.set(id,a);}const s=id===room?.sessionId&&local?local:p;a.g.position.lerp(new THREE.Vector3(s.x,s.y,s.z),1-Math.exp(-dt*(id===room?.sessionId?25:12)));a.g.rotation.y=s.angle;const phase=s.moving?Math.sin(t*speed(s)*1.3)*.7:0;a.legs[0].rotation.x=phase;a.legs[1].rotation.x=-phase;a.arms[0].rotation.x=-phase;a.arms[1].rotation.x=phase;}
-for(const[id,a]of avatars)if(!states[id]){scene.remove(a.g);a.g.traverse(o=>{if(o instanceof THREE.Mesh||o instanceof THREE.Sprite){if(o instanceof THREE.Mesh)o.geometry.dispose();const materials=Array.isArray(o.material)?o.material:[o.material];for(const m of materials){if('map'in m)(m.map as THREE.Texture|null)?.dispose();m.dispose();}}});avatars.delete(id);}orbMeshes.forEach((m,i)=>{m.position.y=1.2+Math.sin(t*2+i)*.2;m.rotation.y=t;});ring.rotation.z=t*.15;target.set(local?.x||0,(local?.y||0)+2,local?.z||0);camera.position.lerp(new THREE.Vector3(target.x+Math.sin(yaw)*distance,target.y+distance*.65,target.z+Math.cos(yaw)*distance),1-Math.exp(-dt*7));camera.lookAt(target);renderer.render(scene,camera);}camera.position.set(0,18,24);frame();onresize=()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);};
+import * as T from "three";
+import { Client, type Room } from "colyseus.js";
+import { DT, move, orbs, speed, type Player, type Input } from "../shared/game";
+import { hoops } from "../shared/world";
+import { createWorld } from "./world/environment";
+import { createAvatar } from "./player/avatar";
+import { createEffects } from "./world/effects";
+import { createHud, $ } from "./ui/hud";
+import "./style.css";
+
+const hud = createHud();
+const scene = new T.Scene();
+const camera = new T.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 1800);
+const renderer = new T.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = T.SRGBColorSpace;
+renderer.toneMapping = T.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.type = T.PCFSoftShadowMap;
+renderer.shadowMap.autoUpdate = false;
+document.body.prepend(renderer.domElement);
+const world = createWorld(scene),
+  effects = createEffects(scene);
+function applySettings() {
+  world.setNight(hud.settings.night);
+  renderer.setPixelRatio(
+    Math.min(devicePixelRatio, hud.settings.quality === "low" ? 0.85 : 1.5),
+  );
+  renderer.shadowMap.enabled = hud.settings.quality !== "low";
+}
+hud.onSettings = applySettings;
+applySettings();
+const avatars = new Map<string, ReturnType<typeof createAvatar>>();
+let states: Record<string, Player> = {},
+  local: Player | undefined,
+  room: Room | undefined,
+  seq = 0,
+  pending: Input[] = [],
+  connected = false;
+const keys = new Set<string>();
+let yaw = 0,
+  distance = 22,
+  drag = false,
+  jump = false,
+  acc = 0,
+  stickX = 0,
+  stickZ = 0;
+const target = new T.Vector3(),
+  desired = new T.Vector3(),
+  direction = new T.Vector3(),
+  hit = new T.Vector3(),
+  ray = new T.Ray();
+const cameraBoxes = world.cameraSolids.map(
+  (s) =>
+    new T.Box3(
+      new T.Vector3(s.x - s.w / 2 - 0.5, -1, s.z - s.d / 2 - 0.5),
+      new T.Vector3(s.x + s.w / 2 + 0.5, s.h + 0.7, s.z + s.d / 2 + 0.5),
+    ),
+);
+function clearInput() {
+  keys.clear();
+  jump = false;
+  stickX = stickZ = 0;
+  ($("stick").firstElementChild as HTMLElement).style.transform = "";
+}
+onkeydown = (e) => {
+  if ((e.target as HTMLElement).matches("input,select,textarea")) return;
+  if (e.key.toLowerCase() === "m" && connected) {
+    clearInput();
+    hud.open("map");
+    return;
+  }
+  if (hud.panel.open || !connected) return;
+  if ([" ", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key))
+    e.preventDefault();
+  keys.add(e.key.toLowerCase());
+  if (e.code === "Space" && !e.repeat) jump = true;
+};
+onkeyup = (e) => keys.delete(e.key.toLowerCase());
+onblur = clearInput;
+document.addEventListener("visibilitychange", () => {
+  clearInput();
+  acc = 0;
+});
+hud.panel.addEventListener("close", clearInput);
+renderer.domElement.onpointerdown = (e) => {
+  drag = true;
+  renderer.domElement.setPointerCapture(e.pointerId);
+};
+renderer.domElement.onpointerup = renderer.domElement.onpointercancel = () =>
+  (drag = false);
+renderer.domElement.style.touchAction = "none";
+renderer.domElement.onpointermove = (e) => {
+  if (drag) yaw -= e.movementX * 0.006 * hud.settings.sensitivity;
+};
+renderer.domElement.onwheel = (e) => {
+  distance = T.MathUtils.clamp(distance + e.deltaY * 0.015, 9, 55);
+};
+const stick = $("stick");
+let stickPointer: number | undefined;
+function updateStick(e: PointerEvent) {
+  const r = stick.getBoundingClientRect();
+  let x = (e.clientX - r.left - r.width / 2) / 40,
+    z = (e.clientY - r.top - r.height / 2) / 40;
+  const n = Math.max(1, Math.hypot(x, z));
+  stickX = x / n;
+  stickZ = z / n;
+  (stick.firstElementChild as HTMLElement).style.transform =
+    `translate(${stickX * 30}px,${stickZ * 30}px)`;
+}
+stick.onpointerdown = (e) => {
+  stickPointer = e.pointerId;
+  stick.setPointerCapture(e.pointerId);
+  updateStick(e);
+};
+stick.onpointermove = (e) => {
+  if (e.pointerId === stickPointer) updateStick(e);
+};
+stick.onpointerup = stick.onpointercancel = () => {
+  stickPointer = undefined;
+  clearInput();
+};
+$("jump").onpointerdown = () => {
+  if (!hud.panel.open) jump = true;
+};
+$("hello").onclick = () => {
+  if (connected) room?.send("hello");
+};
+function setStatus(text: string) {
+  $("connection").textContent = text;
+}
+$("join").onclick = async () => {
+  const button = $("join") as HTMLButtonElement;
+  button.disabled = true;
+  $("error").textContent = "Finding your world…";
+  try {
+    const endpoint =
+      (import.meta as unknown as { env: Record<string, string> }).env
+        .VITE_SERVER_URL ||
+      `${location.protocol === "https:" ? "wss" : "ws"}://${location.hostname}:2567`;
+    room = await new Client(endpoint).joinOrCreate("plaza", {
+      name: ($("name") as HTMLInputElement).value,
+    });
+    seq = 0;
+    pending = [];
+    local = undefined;
+    acc = 0;
+    states = {};
+    connected = true;
+    clearInput();
+    $("entry").style.display = "none";
+    renderer.domElement.tabIndex = 0;
+    renderer.domElement.focus();
+    setStatus("● JOINING WORLD");
+    room.onMessage(
+      "snapshot",
+      (s: {
+        players: Record<string, Player>;
+        hidden: number[];
+        time: number;
+      }) => {
+        states = s.players;
+        const p = states[room!.sessionId];
+        if (p) {
+          const previous = local?.level;
+          pending = pending.filter((i) => i.seq > p.seq);
+          local = { ...p };
+          for (const i of pending) move(local, i);
+          if (previous && p.level > previous) {
+            hud.toast(`LEVEL ${p.level} · YOUR NEXT LIMIT!`);
+            if (!hud.settings.comfort)
+              effects.emit(p.x, p.y + 2, p.z, 0xffd778, 40);
+          }
+          hud.snapshot(p, states);
+        }
+        setStatus(`● CONNECTED · ${Object.keys(states).length}/20`);
+        const hidden = new Set(s.hidden);
+        world.orbMeshes.forEach((m, i) => (m.visible = !hidden.has(i)));
+      },
+    );
+    room.onMessage(
+      "pickup",
+      (v: { id: number; player: string; gold: boolean }) => {
+        const orb = orbs[v.id];
+        if (orb && !hud.settings.comfort)
+          effects.emit(orb.x, 1.2, orb.z, v.gold ? 0xffcf68 : 0x70efff);
+        if (v.player === room?.sessionId)
+          hud.toast(v.gold ? "+3 GEMS · +15 XP" : "+10 STEPS · +10 XP");
+      },
+    );
+    room.onMessage("hoop", (v: { id: number; player: string; xp: number }) => {
+      avatars.get(v.player)?.wave(clock.elapsedTime);
+      const h = hoops[v.id];
+      if (h && !hud.settings.comfort) effects.emit(h.x, h.y, h.z, h.color, 40);
+      if (v.player === room?.sessionId) hud.toast(`RING CLEARED! +${v.xp} XP`);
+    });
+    room.onMessage("emote", (v: { id: string; text: string }) => {
+      avatars.get(v.id)?.wave(clock.elapsedTime);
+      hud.toast(`${states[v.id]?.name || "Runner"}: ${v.text}`);
+    });
+    room.onLeave(() => {
+      connected = false;
+      clearInput();
+      pending = [];
+      states = {};
+      setStatus("● DISCONNECTED");
+      hud.panel.close();
+      $("entry").style.display = "flex";
+      $("error").textContent = "Connection ended. Rejoin starts a new session.";
+      button.disabled = false;
+    });
+  } catch (e) {
+    setStatus("● OFFLINE");
+    $("error").textContent =
+      `Could not join: ${e instanceof Error ? e.message : "server unavailable"}`;
+    button.disabled = false;
+  }
+};
+const clock = new T.Clock();
+let trailTimer = 0,
+  lastFrame = 0,
+  shadowTimer = 1;
+function frame() {
+  requestAnimationFrame(frame);
+  const elapsed = clock.getDelta(),
+    dt = Math.min(elapsed, 0.1),
+    t = clock.elapsedTime;
+  lastFrame = elapsed;
+  if (connected && local) acc += dt;
+  else acc = 0;
+  if (hud.panel.open || document.hidden) clearInput();
+  while (acc >= DT && connected && local && room) {
+    acc -= DT;
+    const x =
+        Number(keys.has("d") || keys.has("arrowright")) -
+        Number(keys.has("a") || keys.has("arrowleft")) +
+        stickX,
+      z =
+        Number(keys.has("s") || keys.has("arrowdown")) -
+        Number(keys.has("w") || keys.has("arrowup")) +
+        stickZ;
+    const input = {
+      seq: seq++,
+      x: x * Math.cos(yaw) + z * Math.sin(yaw),
+      z: z * Math.cos(yaw) - x * Math.sin(yaw),
+      jump,
+    };
+    const n = Math.max(1, Math.hypot(input.x, input.z));
+    input.x /= n;
+    input.z /= n;
+    jump = false;
+    room.send("input", input);
+    pending.push(input);
+    if (pending.length > 100) pending.shift();
+    move(local, input);
+  }
+  for (const [id, p] of Object.entries(states)) {
+    let a = avatars.get(id);
+    if (!a) {
+      a = createAvatar(p);
+      avatars.set(id, a);
+      scene.add(a.g);
+      a.g.position.set(p.x, p.y, p.z);
+    }
+    a.animate(
+      id === room?.sessionId && local ? local : p,
+      t,
+      dt,
+      id === room?.sessionId,
+    );
+  }
+  for (const [id, a] of avatars)
+    if (!states[id]) {
+      a.dispose();
+      avatars.delete(id);
+    }
+  const x = local?.x || 0,
+    z = local?.z || 0;
+  world.update(t, dt, x, z);
+  effects.update(dt);
+  hud.update(dt);
+  if (local?.moving && !hud.settings.comfort && speed(local) > 12) {
+    trailTimer += dt;
+    if (trailTimer > 0.08) {
+      effects.emit(x, local.y + 0.2, z, 0xc6f3fc, 2);
+      trailTimer = 0;
+    }
+  }
+  target.set(x, (local?.y || 0) + 2, z);
+  desired.set(
+    target.x + Math.sin(yaw) * distance,
+    target.y + distance * 0.36,
+    target.z + Math.cos(yaw) * distance,
+  );
+  direction.copy(desired).sub(target);
+  const length = direction.length();
+  ray.set(target, direction.normalize());
+  let nearest = length;
+  for (const box of cameraBoxes)
+    if (ray.intersectBox(box, hit))
+      nearest = Math.min(nearest, hit.distanceTo(target) - 0.4);
+  if (nearest < length)
+    desired.copy(target).addScaledVector(direction, Math.max(2, nearest));
+  camera.position.lerp(desired, 1 - Math.exp(-dt * 9));
+  camera.lookAt(target);
+  const fov =
+    55 +
+    (!hud.settings.comfort && local?.moving
+      ? Math.min(8, (speed(local) - 9) * 0.3)
+      : 0);
+  camera.fov = T.MathUtils.lerp(camera.fov, fov, dt * 3);
+  camera.updateProjectionMatrix();
+  shadowTimer += dt;
+  if (shadowTimer > 0.15) {
+    renderer.shadowMap.needsUpdate = true;
+    shadowTimer = 0;
+  }
+  renderer.render(scene, camera);
+}
+camera.position.set(0, 14, 25);
+setStatus("● OFFLINE");
+frame();
+onresize = () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+};
+// Read-only diagnostics, only in Vite development builds. No mutation or reward controls.
+if ((import.meta as unknown as { env: { DEV: boolean } }).env.DEV)
+  Object.defineProperty(window, "riftDiagnostics", {
+    get: () => ({
+      players: JSON.parse(JSON.stringify(states)),
+      localId: room?.sessionId,
+      avatars: [...avatars].map(([id, a]) => ({
+        id,
+        x: a.g.position.x,
+        y: a.g.position.y,
+        z: a.g.position.z,
+      })),
+      drawCalls: renderer.info.render.calls,
+      triangles: renderer.info.render.triangles,
+      frameMs: lastFrame * 1000,
+    }),
+  });
