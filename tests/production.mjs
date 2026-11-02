@@ -30,6 +30,8 @@ try {
   await p.waitForFunction(() =>
     document.querySelector("#connection").textContent.includes("CONNECTED"),
   );
+  assert.equal(await p.evaluate(() => "riftDiagnostics" in window), false);
+  assert.equal(await p.locator("#networkDiagnostics").count(), 0);
   await p.bringToFront();
   await p
     .locator("canvas")
@@ -44,6 +46,18 @@ try {
   await p.keyboard.up("w");
   assert.ok(Number(await p.locator("#steps").textContent()) > 0);
   await p.screenshot({ path: "artifacts/production-desktop.png" });
+  await p.locator('[data-panel="trails"]').click();
+  assert.equal(await p.locator(".trail-card").count(), 77);
+  await p.locator('[data-trail-id="special-hyperblast"]').click();
+  await p.locator("#trailPreview").waitFor({ state: "visible" });
+  const preview = await p.locator("#trailPreview").boundingBox();
+  assert.ok(
+    preview.y >= 0 && preview.y < 800,
+    "selecting a distant card brings its detail into view",
+  );
+  assert.equal(await p.locator("#equipTrail").isDisabled(), true);
+  await p.screenshot({ path: "artifacts/trails/production-preview.png" });
+  await p.locator("#closePanel").click();
   await ctx.close();
   const mobile = await browser.newContext({
     viewport: { width: 390, height: 844 },

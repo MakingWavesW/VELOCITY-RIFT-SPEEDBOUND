@@ -27,6 +27,7 @@ function track(room: Room) {
     pickups: [] as PickupEvent[],
     hoops: [] as any[],
   };
+  room.onMessage("trailInventory", () => {});
   room.onMessage("snapshot", (s) => (data.state = s));
   room.onMessage("orbState", (s: OrbState) => {
     data.orbs = new Map(s.orbs.map((o) => [o.id, o]));

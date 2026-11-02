@@ -1,3 +1,6 @@
+import { createTrail } from "./world/trails";
+import { DEFAULT_TRAIL, type TrailInventory } from "../shared/trails";
+import { NETWORK, SnapshotBuffer } from "./network/snapshots";
 import { createOrbRenderer } from "./world/orbs";
 import {
   type OrbState,
@@ -7,7 +10,14 @@ import {
 } from "../shared/orbs";
 import * as T from "three";
 import { Client, type Room } from "colyseus.js";
-import { DT, move, speed, type Player, type Input } from "../shared/game";
+import {
+  DT,
+  move,
+  actualSpeed,
+  angleDelta,
+  type Player,
+  type Input,
+} from "../shared/game";
 import { hoops } from "../shared/world";
 import { createWorld } from "./world/environment";
 import { createAvatar } from "./player/avatar";
@@ -38,6 +48,10 @@ function applySettings() {
 }
 hud.onSettings = applySettings;
 applySettings();
+const trails = new Map<
+  string,
+  { effect: ReturnType<typeof createTrail>; reset: number }
+>();
 const avatars = new Map<string, ReturnType<typeof createAvatar>>();
 let states: Record<string, Player> = {},
   local: Player | undefined,
@@ -45,6 +59,17 @@ let states: Record<string, Player> = {},
   seq = 0,
   pending: Input[] = [],
   connected = false;
+const buffers = new Map<string, SnapshotBuffer>();
+const correction = new T.Vector3();
+let localPrevious: Player | undefined,
+  lastPrediction = performance.now();
+let lastSnapshot = 0,
+  serverOffset = 0,
+  lastServerTime = 0;
+let predictionError = 0,
+  correctionDistance = 0,
+  hardCorrections = 0,
+  rtt = 0;
 let lastOrbSync = 0;
 function requestOrbSync() {
   if (room && performance.now() - lastOrbSync > 1000) {
@@ -54,10 +79,10 @@ function requestOrbSync() {
 }
 const keys = new Set<string>();
 let yaw = 0,
+  cameraYaw = 0,
   distance = 22,
   drag = false,
   jump = false,
-  acc = 0,
   stickX = 0,
   stickZ = 0;
 const target = new T.Vector3(),
@@ -80,6 +105,15 @@ function clearInput() {
 }
 onkeydown = (e) => {
   if ((e.target as HTMLElement).matches("input,select,textarea")) return;
+  if (
+    e.key === "F3" &&
+    (import.meta as unknown as { env: { DEV: boolean } }).env.DEV
+  ) {
+    e.preventDefault();
+    const overlay = document.getElementById("networkDiagnostics");
+    if (overlay) overlay.hidden = !overlay.hidden;
+    return;
+  }
   if (e.key.toLowerCase() === "m" && connected) {
     clearInput();
     hud.open("map");
@@ -95,7 +129,6 @@ onkeyup = (e) => keys.delete(e.key.toLowerCase());
 onblur = clearInput;
 document.addEventListener("visibilitychange", () => {
   clearInput();
-  acc = 0;
 });
 hud.panel.addEventListener("close", clearInput);
 renderer.domElement.onpointerdown = (e) => {
@@ -138,6 +171,10 @@ stick.onpointerup = stick.onpointercancel = () => {
 $("jump").onpointerdown = () => {
   if (!hud.panel.open) jump = true;
 };
+hud.onEquip = (id) => {
+  if (connected) room?.send("equipTrail", id);
+  else hud.toast("Join a world to equip a trail.");
+};
 $("hello").onclick = () => {
   if (connected) room?.send("hello");
 };
@@ -159,8 +196,11 @@ $("join").onclick = async () => {
     seq = 0;
     pending = [];
     local = undefined;
-    acc = 0;
     states = {};
+    buffers.clear();
+    correction.set(0, 0, 0);
+    localPrevious = undefined;
+    lastServerTime = 0;
     orbRenderer.clear();
     lastOrbSync = -Infinity;
     connected = true;
@@ -176,13 +216,55 @@ $("join").onclick = async () => {
         orbRevision: number;
         time: number;
       }) => {
+        if (s.time <= lastServerTime) return;
+        lastServerTime = s.time;
+        const received = performance.now(),
+          offset = s.time - received;
+        serverOffset = lastSnapshot
+          ? serverOffset +
+            T.MathUtils.clamp((offset - serverOffset) * 0.03, -1, 1)
+          : offset;
+        lastSnapshot = received;
         states = s.players;
+        for (const [id, state] of Object.entries(states)) {
+          if (id === room?.sessionId) continue;
+          let buffer = buffers.get(id);
+          if (!buffer) {
+            buffer = new SnapshotBuffer();
+            buffers.set(id, buffer);
+          }
+          if (buffer.push(s.time, state)) avatars.get(id)?.resetMotion();
+        }
         const p = states[room!.sessionId];
         if (p) {
           const previous = local?.level;
+          const before = local;
           pending = pending.filter((i) => i.seq > p.seq);
           local = { ...p };
           for (const i of pending) move(local, i);
+          if (before) {
+            const dx = before.x - local.x,
+              dy = before.y - local.y,
+              dz = before.z - local.z;
+            predictionError = Math.hypot(dx, dy, dz);
+            if (predictionError > NETWORK.hardCorrection) {
+              correction.set(0, 0, 0);
+              localPrevious = { ...local };
+              hardCorrections++;
+              avatars.get(p.id)?.resetMotion();
+            } else {
+              correction.add(new T.Vector3(dx, dy, dz));
+              // Move both ends of the render interpolation into the corrected simulation space.
+              if (localPrevious) {
+                localPrevious.x -= dx;
+                localPrevious.y -= dy;
+                localPrevious.z -= dz;
+              }
+              if (correction.length() > NETWORK.hardCorrection)
+                correction.setLength(NETWORK.hardCorrection);
+            }
+          } else localPrevious = { ...local };
+          correctionDistance = correction.length();
           if (previous && p.level > previous) {
             hud.toast(`LEVEL ${p.level} · YOUR NEXT LIMIT!`);
             if (!hud.settings.comfort)
@@ -194,6 +276,13 @@ $("join").onclick = async () => {
         if (s.orbRevision > orbRenderer.revision) requestOrbSync();
       },
     );
+    room.onMessage("trailInventory", (value: TrailInventory) =>
+      hud.inventory(value),
+    );
+    room.send("trailInventory");
+    room.onMessage("pong", (sent: number) => {
+      rtt = performance.now() - sent;
+    });
     room.onMessage("orbState", (state: OrbState) => orbRenderer.sync(state));
     room.onMessage("orbPatch", (patch: OrbPatch) => {
       if (!orbRenderer.patch(patch)) requestOrbSync();
@@ -223,18 +312,21 @@ $("join").onclick = async () => {
     });
     room.onLeave(() => {
       connected = false;
-      let lastOrbSync = 0;
-      function requestOrbSync() {
-        if (room && performance.now() - lastOrbSync > 1000) {
-          lastOrbSync = performance.now();
-          room.send("orbSync");
-        }
-      }
+      local = localPrevious = undefined;
+      buffers.clear();
+      correction.set(0, 0, 0);
+      lastSnapshot = 0;
       clearInput();
       pending = [];
       states = {};
       orbRenderer.clear();
       hud.clearPickups();
+      hud.inventory({
+        owned: [],
+        equipped: DEFAULT_TRAIL,
+        level: 1,
+        sessionOnly: true,
+      });
       setStatus("● DISCONNECTED");
       hud.panel.close();
       $("entry").style.display = "flex";
@@ -248,44 +340,51 @@ $("join").onclick = async () => {
     button.disabled = false;
   }
 };
+// Input sampling is independent of rendering. Never simulate more than the bounded
+// unacknowledged window; a stalled connection cannot build up unlimited predictions.
+setInterval(() => {
+  if (!connected || !local || !room) return;
+  if (hud.panel.open || document.hidden) clearInput();
+  if (pending.length >= NETWORK.maxPending) return;
+  const x =
+    Number(keys.has("d") || keys.has("arrowright")) -
+    Number(keys.has("a") || keys.has("arrowleft")) +
+    stickX;
+  const z =
+    Number(keys.has("s") || keys.has("arrowdown")) -
+    Number(keys.has("w") || keys.has("arrowup")) +
+    stickZ;
+  const input = {
+    seq: seq++,
+    x: x * Math.cos(yaw) + z * Math.sin(yaw),
+    z: z * Math.cos(yaw) - x * Math.sin(yaw),
+    jump,
+  };
+  const n = Math.max(1, Math.hypot(input.x, input.z));
+  input.x /= n;
+  input.z /= n;
+  jump = false;
+  room.send("input", input);
+  pending.push(input);
+  localPrevious = { ...local };
+  move(local, input);
+  lastPrediction = performance.now();
+}, DT * 1000);
+setInterval(() => {
+  if (connected) room?.send("ping", performance.now());
+}, 1500);
 const clock = new T.Clock();
-let trailTimer = 0,
-  lastFrame = 0,
+let lastFrame = 0,
+  lastWorldRender = -Infinity,
   shadowTimer = 1;
 function frame() {
   requestAnimationFrame(frame);
   const elapsed = clock.getDelta(),
-    dt = Math.min(elapsed, 0.1),
+    dt = Math.min(elapsed, 0.25),
     t = clock.elapsedTime;
   lastFrame = elapsed;
-  if (connected && local) acc += dt;
-  else acc = 0;
-  if (hud.panel.open || document.hidden) clearInput();
-  while (acc >= DT && connected && local && room) {
-    acc -= DT;
-    const x =
-        Number(keys.has("d") || keys.has("arrowright")) -
-        Number(keys.has("a") || keys.has("arrowleft")) +
-        stickX,
-      z =
-        Number(keys.has("s") || keys.has("arrowdown")) -
-        Number(keys.has("w") || keys.has("arrowup")) +
-        stickZ;
-    const input = {
-      seq: seq++,
-      x: x * Math.cos(yaw) + z * Math.sin(yaw),
-      z: z * Math.cos(yaw) - x * Math.sin(yaw),
-      jump,
-    };
-    const n = Math.max(1, Math.hypot(input.x, input.z));
-    input.x /= n;
-    input.z /= n;
-    jump = false;
-    room.send("input", input);
-    pending.push(input);
-    if (pending.length > 100) pending.shift();
-    move(local, input);
-  }
+  correction.multiplyScalar(Math.exp(-NETWORK.correctionRate * dt));
+  const renderTime = performance.now() + serverOffset - NETWORK.interpolationMs;
   for (const [id, p] of Object.entries(states)) {
     let a = avatars.get(id);
     if (!a) {
@@ -294,35 +393,80 @@ function frame() {
       scene.add(a.g);
       a.g.position.set(p.x, p.y, p.z);
     }
-    a.animate(
-      id === room?.sessionId && local ? local : p,
+    const isLocal = id === room?.sessionId;
+    let visible =
+      isLocal && local
+        ? { ...local }
+        : buffers.get(id)?.sample(renderTime) || p;
+    if (isLocal && local && localPrevious) {
+      const alpha = Math.min(
+        1,
+        (performance.now() - lastPrediction) / (DT * 1000),
+      );
+      for (const key of ["x", "y", "z"] as const)
+        visible[key] = T.MathUtils.lerp(localPrevious[key], local[key], alpha);
+      visible.angle =
+        localPrevious.angle +
+        angleDelta(localPrevious.angle, local.angle) * alpha;
+      visible.x += correction.x;
+      visible.y += correction.y;
+      visible.z += correction.z;
+    }
+    a.animate(visible, t, dt);
+    let trail = trails.get(id);
+    if (!trail) {
+      trail = {
+        effect: createTrail(scene, p.equippedTrailId || DEFAULT_TRAIL),
+        reset: a.resetVersion,
+      };
+      trails.set(id, trail);
+    }
+    if (trail.reset !== a.resetVersion) {
+      trail.effect.clear();
+      trail.reset = a.resetVersion;
+    }
+    trail.effect.setTrail(p.equippedTrailId || DEFAULT_TRAIL);
+    const distant = camera.position.distanceToSquared(a.g.position) > 180 * 180;
+    trail.effect.update(
+      a.g.position,
       t,
       dt,
-      id === room?.sessionId,
+      {
+        quality: isLocal ? hud.settings.quality : "low",
+        comfort: hud.settings.comfort,
+      },
+      isLocal || (hud.settings.remoteTrails && !distant),
     );
   }
   for (const [id, a] of avatars)
     if (!states[id]) {
       a.dispose();
+      trails.get(id)?.effect.dispose();
+      trails.delete(id);
       avatars.delete(id);
+      buffers.delete(id);
     }
   const x = local?.x || 0,
     z = local?.z || 0;
   world.update(t, dt, x, z);
   effects.update(dt);
   hud.update(dt);
-  if (local?.moving && !hud.settings.comfort && speed(local) > 12) {
-    trailTimer += dt;
-    if (trailTimer > 0.08) {
-      effects.emit(x, local.y + 0.2, z, 0xc6f3fc, 2);
-      trailTimer = 0;
-    }
-  }
-  target.set(x, (local?.y || 0) + 2, z);
+  const visibleLocal = room
+    ? avatars.get(room.sessionId)?.g.position
+    : undefined;
+  target.set(
+    visibleLocal?.x || 0,
+    (visibleLocal?.y || 0) + 2,
+    visibleLocal?.z || 0,
+  );
+  cameraYaw += angleDelta(cameraYaw, yaw) * (1 - Math.exp(-dt * 18));
+  const running = local ? actualSpeed(local) : 0;
+  const followDistance =
+    distance + (hud.settings.comfort ? 0 : Math.min(2.5, running * 0.08));
   desired.set(
-    target.x + Math.sin(yaw) * distance,
-    target.y + distance * 0.36,
-    target.z + Math.cos(yaw) * distance,
+    target.x + Math.sin(cameraYaw) * followDistance,
+    target.y + followDistance * 0.36,
+    target.z + Math.cos(cameraYaw) * followDistance,
   );
   direction.copy(desired).sub(target);
   const length = direction.length();
@@ -337,10 +481,8 @@ function frame() {
   camera.lookAt(target);
   const fov =
     55 +
-    (!hud.settings.comfort && local?.moving
-      ? Math.min(8, (speed(local) - 9) * 0.3)
-      : 0);
-  camera.fov = T.MathUtils.lerp(camera.fov, fov, dt * 3);
+    (!hud.settings.comfort && local?.moving ? Math.min(8, running * 0.25) : 0);
+  camera.fov = T.MathUtils.lerp(camera.fov, fov, 1 - Math.exp(-dt * 3));
   camera.updateProjectionMatrix();
   shadowTimer += dt;
   if (shadowTimer > 0.15) {
@@ -348,7 +490,14 @@ function frame() {
     shadowTimer = 0;
   }
   orbRenderer.update(t, camera, hud.settings.comfort);
-  renderer.render(scene, camera);
+  // Keep the world connected behind menus; spend preview time on the visible panel.
+  if (!hud.panel.open || t - lastWorldRender > 0.25) {
+    renderer.render(scene, camera);
+    lastWorldRender = t;
+  }
+  const overlay = document.getElementById("networkDiagnostics");
+  if (overlay && !overlay.hidden)
+    overlay.textContent = `FPS ${(1 / Math.max(lastFrame, 0.001)).toFixed(0)} · frame ${(lastFrame * 1000).toFixed(1)} ms\nRTT ${rtt.toFixed(0)} ms · snapshot age ${(performance.now() - lastSnapshot).toFixed(0)} ms\nPrediction ${predictionError.toFixed(3)} m · correction ${correction.length().toFixed(3)} m\nACK ${states[room?.sessionId || ""]?.seq ?? -1} · pending ${pending.length} · players ${Object.keys(states).length}`;
 }
 camera.position.set(0, 14, 25);
 setStatus("● OFFLINE");
@@ -359,11 +508,27 @@ onresize = () => {
   renderer.setSize(innerWidth, innerHeight);
 };
 // Read-only diagnostics, only in Vite development builds. No mutation or reward controls.
-if ((import.meta as unknown as { env: { DEV: boolean } }).env.DEV)
+if ((import.meta as unknown as { env: { DEV: boolean } }).env.DEV) {
+  const overlay = document.createElement("pre");
+  overlay.id = "networkDiagnostics";
+  overlay.hidden = true;
+  document.body.append(overlay);
   Object.defineProperty(window, "riftDiagnostics", {
     get: () => ({
       players: JSON.parse(JSON.stringify(states)),
       localId: room?.sessionId,
+      predicted: local ? { ...local } : undefined,
+      rtt,
+      snapshotAge: performance.now() - lastSnapshot,
+      predictionError,
+      correctionDistance,
+      hardCorrections,
+      pendingInputs: pending.length,
+      ack: states[room?.sessionId || ""]?.seq,
+      remoteBuffers: [...buffers].map(([id, b]) => ({
+        id,
+        size: b.samples.length,
+      })),
       orbRevision: orbRenderer.revision,
       orbs: orbRenderer.active,
       avatars: [...avatars].map(([id, a]) => ({
@@ -371,9 +536,13 @@ if ((import.meta as unknown as { env: { DEV: boolean } }).env.DEV)
         x: a.g.position.x,
         y: a.g.position.y,
         z: a.g.position.z,
+        animation: a.animation,
+        trail: trails.get(id)?.effect.id,
+        trailStats: trails.get(id)?.effect.stats,
       })),
       drawCalls: renderer.info.render.calls,
       triangles: renderer.info.render.triangles,
       frameMs: lastFrame * 1000,
     }),
   });
+}

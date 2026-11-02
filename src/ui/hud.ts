@@ -1,3 +1,5 @@
+import { createTrailsPanel } from "./trails";
+import { DEFAULT_TRAIL, type TrailInventory } from "../../shared/trails";
 import {
   ORB_TYPES,
   ORB_BALANCE,
@@ -24,7 +26,7 @@ export function createHud() {
       )
       .join(
         "",
-      )}</div><div id="connection">● CONNECTING</div><div id="location"><small>EXPLORE THE ISLAND</small><strong id="district">Sunburst Plaza</strong><span>Follow the glow. Find your speed.</span></div><nav class="menu"><button data-panel="map"><i>⌖</i><span>Island map</span><kbd>M</kbd></button><button data-panel="settings"><i>⚙</i><span>Settings</span></button><button data-panel="help"><i>?</i><span>How to play</span></button><button id="hello"><i>♡</i><span>Say hello</span></button></nav><div id="roster" class="card"><small>IN THIS WORLD</small><div id="players">Waiting for connection</div></div><div id="toast" role="status"></div><div id="orbLegend" aria-label="Current orb rewards"></div><div id="pickupFeed" role="status" aria-live="polite"></div><div id="streak"></div><div class="levelbar"><div><span id="level">LEVEL 1</span><span id="xpText">0 / 40 XP</span></div><progress id="xp" max="40" value="0"></progress><small>RUN. COLLECT. BREAK YOUR LIMIT.</small></div><div id="help">WASD <span>move</span> &nbsp; SPACE <span>jump</span> &nbsp; DRAG <span>look</span></div><div id="session">ONLINE WORLD · SESSION PROGRESS</div></div><div id="entry"><div class="entry-art"><small>VYRNORA STUDIOS PRESENTS</small><h1>THE WORLD<br>IS YOUR<br><em>RUNWAY.</em></h1><p>A sun-soaked island. A thousand little discoveries.<br>Your next adventure starts with a single step.</p><span class="tag">REAL PLAYERS. ONE SHARED WORLD.</span></div><div class="entry-card"><span class="eyebrow">WELCOME TO SPEEDBOUND</span><h2>Find your fast.</h2><p>Meet in Sunburst Plaza, chase energy orbs, and turn every step into something extraordinary.</p><label for="name">YOUR RUNNER NAME</label><input id="name" maxlength="18" placeholder="Enter a name" autocomplete="nickname"><button id="join">LET’S RUN <span>→</span></button><p id="error">Guest play · Progress lasts for this session</p><div class="entry-foot"><span>ϟ Run & level up</span><span>◆ Collect together</span></div></div></div><dialog id="panel"><div class="panel-head"><h2 id="panelTitle"></h2><button id="closePanel" aria-label="Close panel">×</button></div><div id="panelBody"></div></dialog><div id="touch"><div id="stick"><span></span></div></div><button id="jump" aria-label="Jump">↑<small>JUMP</small></button>`;
+      )}</div><div id="connection">● CONNECTING</div><div id="location"><small>EXPLORE THE ISLAND</small><strong id="district">Sunburst Plaza</strong><span>Follow the glow. Find your speed.</span></div><nav class="menu"><button data-panel="trails"><i>≋</i><span>Trails</span></button><button data-panel="map"><i>⌖</i><span>Island map</span><kbd>M</kbd></button><button data-panel="settings"><i>⚙</i><span>Settings</span></button><button data-panel="help"><i>?</i><span>How to play</span></button><button id="hello"><i>♡</i><span>Say hello</span></button></nav><div id="roster" class="card"><small>IN THIS WORLD</small><div id="players">Waiting for connection</div></div><div id="toast" role="status"></div><div id="orbLegend" aria-label="Current orb rewards"></div><div id="pickupFeed" role="status" aria-live="polite"></div><div id="streak"></div><div class="levelbar"><div><span id="level">LEVEL 1</span><span id="xpText">0 / 40 XP</span></div><progress id="xp" max="40" value="0"></progress><small>RUN. COLLECT. BREAK YOUR LIMIT.</small></div><div id="help">WASD <span>move</span> &nbsp; SPACE <span>jump</span> &nbsp; DRAG <span>look</span></div><div id="session">ONLINE WORLD · SESSION PROGRESS</div></div><div id="entry"><div class="entry-art"><small>VYRNORA STUDIOS PRESENTS</small><h1>THE WORLD<br>IS YOUR<br><em>RUNWAY.</em></h1><p>A sun-soaked island. A thousand little discoveries.<br>Your next adventure starts with a single step.</p><span class="tag">REAL PLAYERS. ONE SHARED WORLD.</span></div><div class="entry-card"><span class="eyebrow">WELCOME TO SPEEDBOUND</span><h2>Find your fast.</h2><p>Meet in Sunburst Plaza, chase energy orbs, and turn every step into something extraordinary.</p><label for="name">YOUR RUNNER NAME</label><input id="name" maxlength="18" placeholder="Enter a name" autocomplete="nickname"><button id="join">LET’S RUN <span>→</span></button><p id="error">Guest play · Progress lasts for this session</p><div class="entry-foot"><span>ϟ Run & level up</span><span>◆ Collect together</span></div></div></div><dialog id="panel"><div class="panel-head"><h2 id="panelTitle"></h2><button id="closePanel" aria-label="Close panel">×</button></div><div id="panelBody"></div></dialog><div id="touch"><div id="stick"><span></span></div></div><button id="jump" aria-label="Jump">↑<small>JUMP</small></button>`;
   $("hello").setAttribute("aria-label", "Say hello");
   const panel = $("panel") as HTMLDialogElement;
   let active = "";
@@ -34,6 +36,7 @@ export function createHud() {
     quality: "high",
     sensitivity: 1,
     comfort: false,
+    remoteTrails: true,
   };
   try {
     const saved = JSON.parse(
@@ -44,9 +47,23 @@ export function createHud() {
       quality: saved.quality === "low" ? "low" : "high",
       sensitivity: Math.max(0.3, Math.min(2, Number(saved.sensitivity) || 1)),
       comfort: saved.comfort === true,
+      remoteTrails: saved.remoteTrails !== false,
     };
   } catch {}
   let onSettings = () => {};
+  let onEquip = (_id: string) => {};
+  let trailPanel: ReturnType<typeof createTrailsPanel> | undefined;
+  let inventory: TrailInventory = {
+    owned: [],
+    equipped: DEFAULT_TRAIL,
+    level: 1,
+    sessionOnly: true,
+  };
+  panel.addEventListener("close", () => {
+    trailPanel?.dispose();
+    trailPanel = undefined;
+    panel.classList.remove("trails-panel");
+  });
   function save() {
     try {
       localStorage.setItem("rift-visual-settings", JSON.stringify(settings));
@@ -54,14 +71,22 @@ export function createHud() {
     onSettings();
   }
   function open(name: string) {
+    trailPanel?.dispose();
+    trailPanel = undefined;
+    panel.classList.toggle("trails-panel", name === "trails");
     active = name;
     map = undefined;
     $("panelTitle").textContent =
       {
+        trails: "Leave a little light",
         map: "Your island awaits",
         settings: "Make it yours",
         help: "A little momentum goes a long way",
       }[name] || "";
+    if (name === "trails") {
+      trailPanel = createTrailsPanel($("panelBody"), (id) => onEquip(id));
+      trailPanel.inventory(inventory);
+    }
     if (name === "map") {
       $("panelBody").innerHTML =
         `<canvas id="mapCanvas" width="600" height="600" aria-label="Island map with your live position"></canvas><div class="district-list">${districts.map((d, i) => `<div><b>${i + 1}. ${d.name}</b><small>${d.description}</small></div>`).join("")}</div>`;
@@ -69,9 +94,15 @@ export function createHud() {
     }
     if (name === "settings") {
       $("panelBody").innerHTML =
-        `<label class="setting">Night atmosphere <input id="night" type="checkbox" ${settings.night ? "checked" : ""}></label><p class="hint">A personal visual setting. Multiplayer time and rewards are unchanged.</p><label class="setting">Graphics <select id="quality"><option value="high">High · soft shadows</option><option value="low">Low · lighter rendering</option></select></label><label class="setting">Camera sensitivity <input id="sensitivity" type="range" min="0.3" max="2" step="0.1" value="${settings.sensitivity}"></label><label class="setting">Reduce motion & particles <input id="comfort" type="checkbox" ${settings.comfort ? "checked" : ""}></label>`;
+        `<label class="setting">Night atmosphere <input id="night" type="checkbox" ${settings.night ? "checked" : ""}></label><p class="hint">A personal visual setting. Multiplayer time and rewards are unchanged.</p><label class="setting">Graphics <select id="quality"><option value="high">High · soft shadows</option><option value="low">Low · lighter rendering</option></select></label><label class="setting">Camera sensitivity <input id="sensitivity" type="range" min="0.3" max="2" step="0.1" value="${settings.sensitivity}"></label><label class="setting">Reduce motion & particles <input id="comfort" type="checkbox" ${settings.comfort ? "checked" : ""}></label><label class="setting">Show other players’ trails <input id="remoteTrails" type="checkbox" ${settings.remoteTrails ? "checked" : ""}></label>`;
       ($("quality") as HTMLSelectElement).value = settings.quality;
-      for (const id of ["night", "quality", "sensitivity", "comfort"])
+      for (const id of [
+        "night",
+        "quality",
+        "sensitivity",
+        "comfort",
+        "remoteTrails",
+      ])
         $(id).onchange = () => {
           settings.night = ($("night") as HTMLInputElement).checked;
           settings.quality = ($("quality") as HTMLSelectElement).value;
@@ -79,12 +110,15 @@ export function createHud() {
             ($("sensitivity") as HTMLInputElement).value,
           );
           settings.comfort = ($("comfort") as HTMLInputElement).checked;
+          settings.remoteTrails = (
+            $("remoteTrails") as HTMLInputElement
+          ).checked;
           save();
         };
     }
     if (name === "help")
       $("panelBody").innerHTML =
-        `<div class="help-grid"><article><i>ϟ</i><h3>Keep moving</h3><p>WASD or arrow keys to run. Space to jump. On touchscreens, use the joystick and jump button.</p></article><article><i>◆</i><h3>Chase the glow</h3><p>Blue → Purple → Red: higher tiers give more Steps and XP. At level 1: 2 / 5 / 10. At level 10: 10 / 25 / 50. Gold retains Gems. Shared orbs return at new positions: Blue 6–10s, Purple 10–15s, Red 14–22s.</p></article><article><i>◎</i><h3>Catch some air</h3><p>Glowing blue launch pads lift you toward rings. Pass through a ring for 20 XP; each has a 20-second personal cooldown.</p></article><article><i>⌖</i><h3>Explore together</h3><p>Drag to turn the camera, scroll to zoom. Use M for the island map, Escape to close menus. Say hello to real players.</p></article></div><div class="orb-routes">${orbRoutes.map((r) => `<p><b>${r.name}</b> · ${r.hint}</p>`).join("")}</div><p class="hint">A pickup streak is visual only; it does not multiply rewards. Progress is session-only. Leaving or reconnecting starts a new runner. Shops, pets and races are not yet available.</p>`;
+        `<div class="help-grid"><article><i>ϟ</i><h3>Keep moving</h3><p>WASD or arrow keys to run. Space to jump. On touchscreens, use the joystick and jump button.</p></article><article><i>◆</i><h3>Chase the glow</h3><p>Blue → Purple → Red: higher tiers give more Steps and XP. At level 1: 2 / 5 / 10. At level 10: 10 / 25 / 50. Gold retains Gems. Shared orbs return at new positions: Blue 6–10s, Purple 10–15s, Red 14–22s.</p></article><article><i>◎</i><h3>Catch some air</h3><p>Glowing blue launch pads lift you toward rings. Pass through a ring for 20 XP; each has a 20-second personal cooldown.</p></article><article><i>⌖</i><h3>Explore together</h3><p>Drag to turn the camera, scroll to zoom. Use M for the island map, Escape to close menus. Say hello to real players.</p></article></div><div class="orb-routes">${orbRoutes.map((r) => `<p><b>${r.name}</b> · ${r.hint}</p>`).join("")}</div><p class="hint">A pickup streak is visual only; it does not multiply rewards. Trails unlock free at session level milestones. Gem bonuses apply only to Gem-paying pickups; Steps bonuses apply only to orb pickups. Progress is session-only. Leaving or reconnecting starts a new runner. Shops, pets and races are not yet available.</p>`;
     if (!panel.open) panel.showModal();
   }
   for (const button of document.querySelectorAll<HTMLElement>("[data-panel]")) {
@@ -156,6 +190,14 @@ export function createHud() {
   return {
     pickup,
     clearPickups,
+    inventory(value: TrailInventory) {
+      inventory = value;
+      trailPanel?.inventory(value);
+      if (value.message) toast(value.message);
+    },
+    set onEquip(fn: (id: string) => void) {
+      onEquip = fn;
+    },
     settings,
     panel,
     open,
@@ -206,6 +248,7 @@ export function createHud() {
       }
     },
     update(dt: number) {
+      if (panel.open) trailPanel?.update(dt, settings.comfort);
       if (!player) return;
       for (const key of ["steps", "gems", "speed"] as const) {
         const target = key === "speed" ? speed(player) : player[key];

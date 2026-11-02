@@ -1,5 +1,7 @@
 # Orb system, routes and core-loop update
 
+This report records the preceding orb update. The subsequent [movement and trails report](MOVEMENT-TRAILS.md) supersedes movement, trail rewards, test totals and network validation status. Orb base balance and lifecycle remain as described below.
+
 ## Architecture and balance
 The existing Three.js client and Colyseus room are retained. The fixed client/server orb array and shared ten-second cooldown list are replaced by a room-owned `OrbManager`. The world remains 880 × 880 and the original movement, level threshold and speed formulas remain intact. No persistent profile or save format is introduced.
 

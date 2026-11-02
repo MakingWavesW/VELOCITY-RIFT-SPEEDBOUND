@@ -1,7 +1,7 @@
 import * as T from "three";
 import { bevel, material, label } from "../world/models";
-import { speed, type Player } from "../../shared/game";
-export function createAvatar(p: Player) {
+import { actualSpeed, angleDelta, type Player } from "../../shared/game";
+export function createAvatar(p: Player, showName = true) {
   const g = new T.Group(),
     body = new T.Group();
   g.add(body);
@@ -60,6 +60,7 @@ export function createAvatar(p: Player) {
   });
   const name = label(p.name, "#ffffff", 3.3);
   name.position.y = 4.1;
+  name.visible = showName;
   g.add(name);
   const shadow = new T.Mesh(
     new T.CircleGeometry(0.8, 24),
@@ -75,39 +76,122 @@ export function createAvatar(p: Player) {
   g.add(shadow);
   let prevGround = true,
     landing = 0,
+    takeoff = 0,
     waveUntil = 0;
-  const vector = new T.Vector3();
+  let phase = 0,
+    intensity = 0,
+    previousSpeed = 0,
+    animation = "idle",
+    resetVersion = 0;
+  let initialized = false;
+  const previousPosition = new T.Vector3();
+  const damp = (a: number, b: number, dt: number, rate = 16) =>
+    T.MathUtils.lerp(a, b, 1 - Math.exp(-rate * dt));
   return {
     g,
-    animate(state: Player, t: number, dt: number, local = false) {
-      g.position.lerp(
-        vector.set(state.x, state.y, state.z),
-        1 - Math.exp(-dt * (local ? 25 : 12)),
-      );
-      const delta = Math.atan2(
-        Math.sin(state.angle - g.rotation.y),
-        Math.cos(state.angle - g.rotation.y),
-      );
-      g.rotation.y += delta * (1 - Math.exp(-dt * 14));
-      const grounded = Math.abs(state.vy) < 0.01;
+    get animation() {
+      return animation;
+    },
+    get resetVersion() {
+      return resetVersion;
+    },
+    resetMotion() {
+      initialized = false;
+      phase = 0;
+      resetVersion++;
+    },
+    animate(state: Player, t: number, dt: number) {
+      const traveled = initialized
+        ? Math.hypot(
+            state.x - previousPosition.x,
+            state.y - previousPosition.y,
+            state.z - previousPosition.z,
+          )
+        : 0;
+      const horizontal = initialized
+        ? Math.hypot(state.x - previousPosition.x, state.z - previousPosition.z)
+        : 0;
+      const turn = angleDelta(g.rotation.y, state.angle);
+      // Positions/facing already come from prediction or the timestamped buffer.
+      g.position.set(state.x, state.y, state.z);
+      g.rotation.y = state.angle;
+      previousPosition.copy(g.position);
+      initialized = true;
+      const grounded = Math.abs(state.verticalVelocity) < 0.01;
+      const velocity = actualSpeed(state);
+      const moving = state.moving && horizontal > 0.0001;
       if (grounded && !prevGround) landing = 0.18;
+      if (!grounded && prevGround) takeoff = 0.1;
       prevGround = grounded;
       landing = Math.max(0, landing - dt);
-      body.scale.y = 1 - landing * 0.7;
-      const rate = Math.min(17, speed(state) * 1.1),
-        phase = state.moving ? Math.sin(t * rate) * 0.65 : 0;
-      body.position.y = grounded
-        ? state.moving
-          ? Math.abs(Math.cos(t * rate)) * 0.045
-          : Math.sin(t * 2) * 0.025
-        : 0;
-      legs[0].rotation.x = grounded ? phase : -0.4;
-      legs[1].rotation.x = grounded ? -phase : 0.3;
-      arms[0].rotation.x = grounded ? -phase : -1;
-      arms[1].rotation.x = grounded ? phase : -1;
-      arms[1].rotation.z = t < waveUntil ? -0.8 + Math.sin(t * 15) * 0.3 : 0;
-      arms[1].rotation.x = t < waveUntil ? -2 : arms[1].rotation.x;
-      body.rotation.x = state.moving && grounded ? 0.07 : 0;
+      takeoff = Math.max(0, takeoff - dt);
+      animation =
+        takeoff > 0
+          ? "takeoff"
+          : !grounded
+            ? "airborne"
+            : landing > 0
+              ? "landing"
+              : moving && previousSpeed - velocity > 0.4
+                ? "braking"
+                : moving && Math.abs(turn) > 0.13
+                  ? "turning"
+                  : !moving
+                    ? "idle"
+                    : velocity < 3
+                      ? "walk"
+                      : velocity < 8
+                        ? "jog"
+                        : velocity < 18
+                          ? "sprint"
+                          : "high-speed";
+      previousSpeed = velocity;
+      // One cycle per two strides; cap cadence by lengthening strides at high speed.
+      const stride = 2.7 + Math.max(0, velocity - 9) * 0.14;
+      if (grounded && moving && traveled < 8)
+        phase += (horizontal / stride) * Math.PI * 2;
+      intensity = damp(intensity, moving ? Math.min(1, velocity / 8) : 0, dt);
+      const swing = Math.sin(phase) * intensity * 0.75;
+      for (let n = 0; n < 2; n++) {
+        const sign = n === 0 ? 1 : -1;
+        legs[n].rotation.x = damp(
+          legs[n].rotation.x,
+          grounded ? sign * swing : n === 0 ? -0.5 : 0.35,
+          dt,
+        );
+        arms[n].rotation.x = damp(
+          arms[n].rotation.x,
+          grounded
+            ? -sign * swing * (0.7 + Math.min(0.5, velocity / 40))
+            : -0.9 - takeoff * 3,
+          dt,
+        );
+      }
+      body.scale.y = damp(
+        body.scale.y,
+        1 - landing * 0.85 - takeoff * 0.4,
+        dt,
+        24,
+      );
+      body.position.y = damp(
+        body.position.y,
+        grounded ? intensity * Math.abs(Math.cos(phase)) * 0.055 : 0,
+        dt,
+      );
+      const lean =
+        animation === "braking" ? -0.08 : Math.min(0.22, velocity * 0.009);
+      body.rotation.x = damp(body.rotation.x, grounded ? lean : 0.05, dt);
+      body.rotation.z = damp(
+        body.rotation.z,
+        Math.max(-0.15, Math.min(0.15, -turn * 0.5)),
+        dt,
+      );
+      arms[1].rotation.z = damp(
+        arms[1].rotation.z,
+        t < waveUntil ? -0.8 + Math.sin(t * 15) * 0.3 : 0,
+        dt,
+      );
+      if (t < waveUntil) arms[1].rotation.x = -2;
       shadow.visible = grounded;
     },
     wave(t: number) {

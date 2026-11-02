@@ -1010,3 +1010,291 @@ button {
     top: 155px;
   }
 }
+
+/* Trails collection shares the game's warm rounded HUD language. */
+#panel.trails-panel {
+  width: min(1040px, 94vw);
+  max-width: 1040px;
+}
+.trail-session {
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #eaf2f3;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.trail-feature {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  gap: 24px;
+  margin: 18px 0;
+}
+#trailPreview {
+  position: relative;
+  height: 230px;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #14283c;
+}
+#trailPreview canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+#trailPreview > span {
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  color: #b1d3df;
+  font-size: 10px;
+  letter-spacing: 1.6px;
+  pointer-events: none;
+}
+.trail-detail h3 {
+  font-family: "Lilita One", sans-serif;
+  font-size: 29px;
+  margin: 4px 0 12px;
+}
+.trail-detail > small {
+  background: #24415b;
+  border-radius: 6px;
+  padding: 4px 7px;
+  font-size: 10px;
+}
+#trailBonuses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+#trailBonuses b {
+  background: #e9f1f4;
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: #24415b;
+}
+#trailUnlock,
+#trailStatus {
+  font-size: 12px;
+  line-height: 1.5;
+}
+#trailStatus {
+  min-height: 18px;
+  color: #3c687c;
+}
+.trail-detail button {
+  border: 0;
+  border-radius: 10px;
+  padding: 11px 15px;
+  margin-right: 6px;
+  background: #29657d;
+  color: white;
+  font-weight: 900;
+  cursor: pointer;
+}
+.trail-detail button.secondary {
+  background: #e5ebef;
+  color: #24415b;
+}
+.trail-detail button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.trail-filter {
+  display: flex;
+  gap: 16px;
+  padding: 12px 0 18px;
+}
+.trail-filter label {
+  display: grid;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 900;
+  flex: 1;
+}
+.trail-filter input,
+.trail-filter select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #c4d5de;
+  border-radius: 9px;
+  padding: 10px;
+  background: white;
+  color: #24415b;
+  font: inherit;
+  font-size: 13px;
+}
+#trailGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  padding-bottom: 12px;
+}
+.trail-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 10px;
+  border: 2px solid var(--rarity);
+  border-radius: 13px;
+  background: #f8fafb;
+  color: #24415b;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  min-width: 0;
+}
+.trail-card.selected {
+  box-shadow: 0 0 0 3px #24415b;
+}
+.trail-card strong {
+  font-size: 13px;
+}
+.trail-card small,
+.trail-card-stats {
+  font-size: 10px;
+}
+.trail-owned {
+  font-size: 10px;
+  font-weight: 900;
+  margin-top: 5px;
+  padding: 4px 7px;
+  background: #e8eff2;
+  border-radius: 5px;
+}
+.trail-thumb {
+  display: block;
+  position: relative;
+  height: 45px;
+  width: 100%;
+  background: #183349;
+  border-radius: 7px;
+  overflow: hidden;
+  margin-bottom: 5px;
+}
+.trail-thumb i {
+  position: absolute;
+  display: block;
+  height: 5px;
+  width: 85%;
+  left: 5%;
+  top: 20px;
+  border-radius: 50%;
+  transform: rotate(-9deg);
+  background: var(--trail-gradient);
+  box-shadow: 0 0 9px #ffffff30;
+}
+.trail-thumb i:nth-child(2) {
+  top: 27px;
+  left: 13%;
+  width: 65%;
+  height: 2px;
+  opacity: 0.65;
+}
+.trail-thumb i:nth-child(3) {
+  top: 13px;
+  width: 58%;
+  height: 2px;
+  opacity: 0.6;
+}
+.trail-thumb.snow i,
+.trail-thumb.gem i,
+.trail-thumb.coin i {
+  height: 10px;
+  width: 10px;
+  left: 25%;
+  border-radius: 2px;
+  transform: rotate(45deg);
+}
+.trail-thumb.snow i:nth-child(2),
+.trail-thumb.gem i:nth-child(2),
+.trail-thumb.coin i:nth-child(2) {
+  left: 50%;
+}
+.trail-thumb.snow i:nth-child(3),
+.trail-thumb.gem i:nth-child(3),
+.trail-thumb.coin i:nth-child(3) {
+  left: 72%;
+}
+.trail-thumb.storm i,
+.trail-thumb.soul i {
+  height: 18px;
+  background: transparent;
+  border-bottom: 3px solid #acdbf8;
+  transform: rotate(-14deg);
+}
+.trail-thumb.fire i {
+  height: 12px;
+  transform: rotate(-15deg) skewX(-30deg);
+}
+.trail-thumb.lightning i,
+.trail-thumb.hyperblast i {
+  clip-path: polygon(
+    0 40%,
+    30% 40%,
+    42% 0,
+    57% 80%,
+    70% 35%,
+    100% 35%,
+    100% 60%,
+    70% 60%,
+    57% 100%,
+    42% 35%,
+    30% 65%,
+    0 65%
+  );
+  height: 23px;
+  top: 10px;
+}
+#networkDiagnostics {
+  position: fixed;
+  z-index: 30;
+  right: 12px;
+  bottom: 12px;
+  padding: 12px;
+  background: #102330e8;
+  color: #c4f9e9;
+  font: 11px/1.65 monospace;
+  border-radius: 8px;
+  pointer-events: none;
+}
+@media (max-width: 700px) {
+  .trail-feature {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  #trailPreview {
+    height: 180px;
+  }
+  #trailGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+  }
+  .trail-detail h3 {
+    font-size: 25px;
+  }
+  .trail-filter {
+    gap: 10px;
+  }
+  .trail-session {
+    font-size: 11px;
+  }
+}
+.trail-card[data-rarity="Unique"] {
+  border-color: transparent;
+  background:
+    linear-gradient(#f8fafb, #f8fafb) padding-box,
+    linear-gradient(130deg, #ff9ab2, #ffd77a, #7de6b4, #88bfff, #d59cf6)
+      border-box;
+}
+.trail-card[data-rarity="Special"] {
+  background: linear-gradient(135deg, #fff8e9, #f5e9fb);
+  border-style: double;
+  border-width: 3px;
+}
+.trail-thumb.storm i,
+.trail-thumb.soul i {
+  background: var(--trail-gradient);
+  border: 0;
+  height: 6px;
+}

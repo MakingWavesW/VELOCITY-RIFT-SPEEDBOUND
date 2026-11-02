@@ -16,7 +16,9 @@ const player = (x = 0, z = 0): Player => ({
   x,
   y: 0,
   z,
-  vy: 0,
+  verticalVelocity: 0,
+      velocityX: 0,
+      velocityZ: 0,
   angle: 0,
   seq: -1,
   steps: 0,
@@ -42,7 +44,7 @@ test("launch pads use the same grounded trigger as the rendered layout", () => {
   const r = ramps[0],
     p = player(r.x, r.z + 1);
   move(p, { seq: 0, x: 0, z: -1, jump: false });
-  assert.ok(p.vy > 18);
+  assert.ok(p.verticalVelocity > 18);
   assert.ok(p.y > 0);
 });
 test("skyline staircase is climbable and roof has a landing surface", () => {
@@ -55,9 +57,9 @@ test("skyline staircase is climbable and roof has a landing surface", () => {
 test("jump falls back to ground and does not jump again while airborne", () => {
   const p = player();
   move(p, { seq: 0, x: 0, z: 0, jump: true });
-  const vy = p.vy;
+  const vy = p.verticalVelocity;
   move(p, { seq: 1, x: 0, z: 0, jump: true });
-  assert.ok(p.vy < vy);
+  assert.ok(p.verticalVelocity < vy);
   for (let i = 0; i < 100; i++)
     move(p, { seq: i + 2, x: 0, z: 0, jump: false });
   assert.equal(p.y, 0);

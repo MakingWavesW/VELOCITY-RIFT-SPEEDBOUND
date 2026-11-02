@@ -1,5 +1,5 @@
 # VELOCITY RIFT: SPEEDBOUND
-An original multiplayer speed-game foundation by Vyrnora Studios, now with an expanded stylized island and redesigned interface.
+An original multiplayer speed game by Vyrnora Studios, with an expanded island, smooth authoritative movement, and 77 collectible trails.
 
 ## Run on Windows, macOS or Linux
 Install Node.js 22.12+ (validated with Node 24). Open a terminal in this directory:
@@ -41,10 +41,19 @@ The shared reward function grows linearly with level and caps the level multipli
 
 The HUD displays exact server-confirmed amounts, tier-colored floating feedback, current-level reward previews, and a visual-only 4.5-second pickup streak. A `rift:orb-pickup` browser event is available for a future audio adapter; no sound engine is claimed. Orbs have smooth colored shells, bright inner cores, pulsing halos, hover motion and confirmed-pickup particles.
 
-## Multiplayer and progression
-The existing Colyseus room, 25 Hz authoritative movement, sequenced inputs, prediction/reconciliation, remote interpolation, level thresholds and speed formula remain intact. Spawn positions and tier rewards intentionally replace the old fixed 72-orb/route layout. Building collisions, launch pads and server-validated hoops remain functional. Orb changes use revisioned delta packets; a rate-limited full-state sync handles initial entry and revision gaps.
+## Movement and Trails
+Shared fixed-step physics now stores horizontal and vertical velocity, accelerates to 90% speed in 0.16 seconds, brakes in 0.12–0.16 seconds, and sweeps collisions in 0.2-unit substeps. Facing follows actual travel; animation cadence follows distance. Local correction smoothing, a timestamped 120 ms remote buffer, bounded extrapolation, and a camera following the visible avatar coordinate presentation. Press **F3 in development** for network/frame diagnostics.
 
-Progress is **session-only** and resets on disconnect/rejoin. Only visual preferences use localStorage. Deploy matching client and server versions: the new orb protocol is incompatible with an old client/server pairing.
+Every runner owns and equips the free **Default Trail** automatically: soft white, +0 Steps, +0 Gems, neutral 1×. Open **Trails** for all 77 exact level-1 records, rarity filters, search, live 3D previews, ownership, and server-confirmed equipping. Duplicate Green Soul / Yellow Soul variants have distinct IDs and tier labels. Only one main trail applies. Graphics settings can hide remote trails and reduce motion/particles.
+
+Session level milestones unlock each group for free: Basic 2, Advanced 5, Advanced Variants 7, Rare 10, Epic 15, Unique 25, Dragonfire 35, Hyperblast 40. These are explicit design choices; the supplied bonus statistics are unchanged. No purchase prices or higher-level upgrade scaling have been invented.
+
+The server adds the equipped trail's Steps bonus once to an eligible orb pickup. It adds the Gems bonus only when the base pickup awards Gems. XP and running-distance rewards receive no trail bonus. For example, Basic Red gives a level-1 Blue orb 4 Steps / 2 XP / 0 Gems, and a Gold pickup 12 Steps / 15 XP / 4 Gems. Popups display the final server award; the small orb legend shows base orb Steps.
+
+## Multiplayer and progression
+Colyseus remains authoritative at 25 Hz. Commands are queued and acknowledged after simulation, with a bounded input window and a wall-clock movement budget. Reconciliation replays unacknowledged commands using the same velocity/collision rules. Snapshot timestamps drive remote interpolation; equipment IDs are replicated, individual particles are generated locally. Orb changes retain revisioned delta packets and recovery sync.
+
+Progress and trail ownership are **session-only** and reset on disconnect/rejoin. Only visual preferences use localStorage. Permanent purchases, authenticated profiles and durable ownership are explicitly deferred. Deploy matching client and server versions: the velocity, equipment and orb protocols require the updated pair.
 
 ## Validation
 With the server running:
@@ -53,26 +62,34 @@ With the server running:
 npm test
 npm run build
 ```
-The 17 tests cover tier scaling, rarity statistics, 24 seeded world layouts, valid separated spawns, single-use claims, relocated respawns, same-tick race conditions, two-client synchronization, spoof rejection, movement, jumps, hoops and the climbable roof route.
+The 26 tests cover movement response timing, high-speed collisions, deterministic replay, timestamp buffering, all trail stat exceptions, ownership checks, equipment replication, reconnect reset, input flooding, plus tier scaling, rarity statistics, 24 seeded world layouts, valid separated spawns, single-use claims, relocated respawns, same-tick race conditions, two-client synchronization, spoof rejection, movement, jumps, hoops and the climbable roof route.
 
 With both server and Vite running:
 
 ```sh
+node tests/trails-browser.mjs
+node tests/multiplayer-browser.mjs
+node tests/trail-effects-browser.mjs
 node tests/orb-browser.mjs
 ```
-This uses `/usr/bin/chromium` by default. Set `CHROMIUM_PATH` to your installed Chromium executable on other systems. It tests two isolated browser contexts, identical random layouts, real keyboard-driven pickup, exact colored HUD feedback, shared disappearance, relocated respawn, night mode, and mobile joystick/layout. Screenshots and measurements go to `artifacts/orbs/`. The earlier `tests/visual.mjs` remains available for broader visual smoke testing. Tests should run against an otherwise idle development world; do not edit source during browser tests because Vite reloads the page.
+Browser scripts use `/usr/bin/chromium`; the orb script also accepts `CHROMIUM_PATH`. Run scripts sequentially to avoid competing software-rendering loads. The trail scripts cover real keyboard movement, the default stream and stop fade, all cards, live previews, mobile layout, two-browser earning/equipping, disconnect cleanup, and a native WebSocket relay with 100–140 ms one-way latency. The relay uses local port 2568. The effect harness renders all twelve families separately. Screenshots and measurements go to `artifacts/trails/`. The existing orb regression script records evidence under `artifacts/orbs/`.
 
-See [the orb-system report](docs/ORB-SYSTEM.md) for evidence and limitations. Automated sessions are test clients, not human playtest evidence. Software rendering and mobile emulation do not establish real-device FPS targets.
+Run browser tests against an idle development world without editing source; Vite reloads interrupt tests. To smoke-test production, run `npx vite preview --host 0.0.0.0` and `node tests/production.mjs` with the backend still running.
+
+See [the movement and trails report](docs/MOVEMENT-TRAILS.md) and [the earlier orb report](docs/ORB-SYSTEM.md) for implementation decisions and validation limits. Automated clients and mobile emulation do not establish human movement feel or real-device FPS.
 
 ## Deployment
 Client and backend deploy separately. `npm run build` produces the static browser client in `dist/`; it does not embed the Node server. Set `VITE_SERVER_URL=wss://your-backend.example` in `.env` **before** building. Serve the client over HTTPS and run `npm ci` followed by `npm run server` on a persistent Node host. `PORT` defaults to 2567; `/health` is the readiness route. Configure TLS, WebSocket upgrades and permitted origins at your reverse proxy. The TypeScript backend runner is a development dependency, so do not use `npm ci --omit=dev` with these commands. Hosting and bandwidth incur costs.
 
 ## Still unfinished
-Persistent PostgreSQL profiles, authenticated reconnect, accounts, parties/room codes, region selection, races/global rankings, pet and trail inventories, rebirth, shops, quests, additional dimensions, audio, platform SDKs, production hardening and 20-player load testing. Buildings have solid walls; the skyline terrace and first tower roof are connected, but there is no island-wide rooftop network. Small decorative trees, lamps and benches do not block movement. No claim of Playgama certification, YouTube Playables compatibility, real-phone performance, or production readiness is made.
+Persistent PostgreSQL profiles, authenticated reconnect, accounts, parties/room codes, region selection, races/global rankings, pet inventories, permanent trail purchases/upgrades, rebirth, shops, quests, additional dimensions, audio, platform SDKs, production hardening and 20-player load testing. Buildings have solid walls; the skyline terrace and first tower roof are connected, but there is no island-wide rooftop network. Small decorative trees, lamps and benches do not block movement. No claim of Playgama certification, YouTube Playables compatibility, real-phone performance, or production readiness is made.
 
 ## Source layout
 - `shared/world.ts`: districts, buildings/solids, ramps, hoops, bounds and crossing geometry.
-- `shared/game.ts`: existing progression and deterministic movement used by client/server.
+- `shared/game.ts`: progression and shared velocity-based movement.
+- `shared/trails.ts`: all 77 records, exact bonuses, session milestones and future upgrade configuration.
+- `src/network/snapshots.ts`: timestamped remote interpolation and bounded extrapolation.
+- `src/world/trails.ts`, `src/ui/trails.ts`: pooled ribbon/particle effects, inventory and live 3D preview.
 - `shared/orbs.ts`, `shared/orbRoutes.ts`: tier balance, reward formulas, protocol types, route quotas, weighting and spawn validation.
 - `server/orbManager.ts`: authoritative lifecycle, random location selection, generation IDs and swept pickup geometry.
 - `src/world/orbs.ts`: three-draw instanced orb renderer.
