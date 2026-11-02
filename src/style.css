@@ -1298,3 +1298,26 @@ button {
   border: 0;
   height: 6px;
 }
+
+
+/* Speedbound Runner Journey: pure client-side guidance (no reward authority). */
+#journeyOverlay { position:fixed;inset:0;pointer-events:none;z-index:8;display:none;font-family:Nunito,sans-serif; }
+#journey { position:absolute;right:24px;top:300px;width:240px;max-width:calc(100vw - 30px);background:linear-gradient(165deg,#173b55ed,#102b43ee);border:1px solid #bcf7ff63;border-radius:20px;box-shadow:0 10px 35px #07253865;color:#fff;padding:16px 36px 14px 17px;overflow:hidden;backdrop-filter:blur(9px); }
+.journey-head { display:flex;justify-content:space-between;gap:7px;font-size:9px;letter-spacing:1.1px;font-weight:900;color:#ffe49a; }
+.journey-head strong { color:#b6faff;white-space:nowrap; }
+.journey-body { margin-top:11px; }
+.journey-body b { display:block;font-family:"Lilita One",sans-serif;font-weight:400;font-size:19px; }
+.journey-body small { display:block;font-size:10px;opacity:.87;margin-top:5px;line-height:1.4; }
+.journey-track {margin-top:11px;height:9px;background:#ffffff35;overflow:hidden;border-radius:20px;border:1px solid #ffffff33;}
+#journeyFill { display:block;background:linear-gradient(90deg,#5fe8fb,#f8d176);height:100%;width:0%;border-radius:20px;transition:width .35s ease;box-shadow:0 0 12px #55f0ea; }
+#journeyNext {position:absolute;right:6px;top:45%;pointer-events:auto;color:#ffda82;background:#ffffff18;font-size:25px;width:26px;height:36px;border-radius:9px;}
+#orbCompass {position:absolute;bottom:95px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:12px;width:220px;background:#102f49de;border:1px solid #bdf5ff91;border-radius:15px;color:#fff;padding:9px 13px;box-shadow:0 5px 22px #102a4670;backdrop-filter:blur(8px);}
+#orbCompass > span:first-child {font-size:26px;color:#ffdf8b;}
+#orbCompass > div {flex:1;min-width:0;}
+#compassName {font-size:11px;letter-spacing:1px;font-weight:900;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#compassDistance {display:block;color:#d8eaf5;font-size:10px;margin-top:3px;}
+#compassArrow {display:block;transform-origin:center;color:#ffe394;font-size:27px;font-family:Arial,sans-serif;transition:transform .18s ease;}
+@media(max-width:1000px){#journey{top:245px;right:12px;width:205px;padding:12px 30px 11px 13px;}.journey-body b{font-size:17px;}}
+@media(max-width:650px){#journey{top:157px;right:10px;width:178px;padding:9px 27px 9px 10px;border-radius:12px;}.journey-head{font-size:7px;letter-spacing:.2px}.journey-body{margin-top:5px}.journey-body b{font-size:14px}.journey-body small{font-size:8px;margin-top:3px}.journey-track{margin-top:5px;height:7px}#journeyNext{top:36%;font-size:20px;width:21px}#orbCompass{bottom:76px;width:175px;padding:5px 8px;gap:6px}#orbCompass>span:first-child{font-size:17px}#compassArrow{font-size:20px}#compassName{font-size:9px}#compassDistance{font-size:8px}}
+@media(max-height:520px){#journey{top:95px;right:12px;width:176px}#orbCompass{bottom:48px;left:auto;right:10px;transform:none}}
+@media(prefers-reduced-motion:reduce){#journeyFill,#compassArrow{transition:none}}
