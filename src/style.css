@@ -876,3 +876,137 @@ button {
     bottom: 240px;
   }
 }
+#orbLegend {
+  position: absolute;
+  top: 184px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  white-space: nowrap;
+  font-size: 9px;
+  font-weight: 900;
+}
+#orbLegend span {
+  padding: 5px 9px;
+  border-radius: 20px;
+  background: #17354ee8;
+  color: var(--orb-color);
+  border: 1px solid #ffffff50;
+}
+#pickupFeed {
+  position: absolute;
+  left: 50%;
+  top: 52%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: max-content;
+  max-width: 85vw;
+  pointer-events: none;
+}
+.orb-pickup {
+  color: white;
+  text-align: center;
+  background: #142f48ec;
+  border: 2px solid var(--orb-color);
+  border-radius: 15px;
+  padding: 8px 15px;
+  box-shadow: 0 0 15px #12375140;
+  animation: orbFloat 2s ease-out forwards;
+}
+.orb-pickup small {
+  display: block;
+  color: var(--orb-color);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 1.3px;
+}
+.orb-pickup strong {
+  font-family: "Lilita One";
+  font-size: 19px;
+  font-weight: 400;
+}
+#streak {
+  position: absolute;
+  bottom: 115px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  font-weight: 900;
+  color: #ffe9a3;
+  text-shadow: 0 2px 4px #122f48;
+  white-space: nowrap;
+}
+.orb-routes {
+  font-size: 12px;
+  line-height: 1.6;
+}
+.orb-routes p {
+  background: #eaf0e5;
+  padding: 9px;
+  border-radius: 10px;
+}
+@keyframes orbFloat {
+  0% {
+    opacity: 0;
+    transform: translateY(15px) scale(0.9);
+  }
+  12%,
+  72% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-32px);
+  }
+}
+@media (max-width: 650px) {
+  #orbLegend {
+    top: 175px;
+    gap: 4px;
+    font-size: 7px;
+  }
+  #orbLegend span {
+    padding: 4px 6px;
+  }
+  .orb-pickup strong {
+    font-size: 15px;
+  }
+  .orb-pickup {
+    padding: 6px 10px;
+  }
+  #pickupFeed {
+    top: 43%;
+  }
+  #streak {
+    bottom: 190px;
+    font-size: 9px;
+  }
+}
+@media (max-height: 520px) {
+  #orbLegend {
+    top: 130px;
+  }
+  #streak {
+    bottom: 80px;
+  }
+}
+/* Keep the reward legend below the district subtitle at each HUD breakpoint. */
+#orbLegend {
+  top: 206px;
+}
+@media (max-width: 650px) {
+  #orbLegend {
+    top: 194px;
+  }
+}
+@media (max-height: 520px) {
+  #orbLegend {
+    top: 155px;
+  }
+}

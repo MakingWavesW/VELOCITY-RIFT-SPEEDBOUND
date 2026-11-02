@@ -1,3 +1,5 @@
+import { OrbManager, touchesOrb } from "./orbManager.js";
+import { orbReward, ORB_BALANCE, type PickupEvent } from "../shared/orbs.js";
 import { hoops, crossesHoop } from "../shared/world.js";
 import express from "express";
 import { createServer } from "node:http";
@@ -6,7 +8,6 @@ import { WebSocketTransport } from "@colyseus/ws-transport";
 import {
   DT,
   move,
-  orbs,
   reward,
   validInput,
   type Player,
@@ -18,10 +19,18 @@ export class Plaza extends Room {
   inputs = new Map<string, Input>();
   pendingJumps = new Set<string>();
   lastInput = new Map<string, number>();
-  cooldowns: Record<number, number> = {};
+  orbManager = new OrbManager();
+  orbSyncTimes = new Map<string, number>();
+  streaks = new Map<string, { last: number; count: number }>();
   hoopCooldowns = new Map<string, number>();
   emotes = new Map<string, number>();
   onCreate() {
+    this.onMessage("orbSync", (client) => {
+      const now = Date.now();
+      if (now - (this.orbSyncTimes.get(client.sessionId) || 0) < 500) return;
+      this.orbSyncTimes.set(client.sessionId, now);
+      client.send("orbState", this.orbManager.snapshot());
+    });
     this.onMessage("input", (client, v) => {
       const p = this.players[client.sessionId];
       if (
@@ -68,6 +77,8 @@ export class Plaza extends Room {
     for (const key of this.hoopCooldowns.keys())
       if (key.startsWith(client.sessionId + ":"))
         this.hoopCooldowns.delete(key);
+    this.orbSyncTimes.delete(client.sessionId);
+    this.streaks.delete(client.sessionId);
     this.emotes.delete(client.sessionId);
     delete this.players[client.sessionId];
     this.pendingJumps.delete(client.sessionId);
@@ -76,6 +87,7 @@ export class Plaza extends Room {
   }
   tick() {
     const now = Date.now();
+    this.orbManager.tick(now);
     for (const p of Object.values(this.players)) {
       const i = this.inputs.get(p.id);
       const active = i && now - (this.lastInput.get(p.id) || 0) < 250;
@@ -100,27 +112,36 @@ export class Plaza extends Room {
           this.broadcast("hoop", { id: h.id, player: p.id, xp: h.xp });
         }
       }
-      for (const orb of orbs)
-        if (
-          (this.cooldowns[orb.id] || 0) <= now &&
-          Math.hypot(p.x - orb.x, p.z - orb.z, p.y) < 2.2
-        ) {
-          this.cooldowns[orb.id] = now + 10000;
-          reward(p, orb.gold ? 15 : 10);
-          p.steps += 10;
-          if (orb.gold) p.gems += 3;
-          this.broadcast("pickup", {
-            id: orb.id,
-            player: p.id,
-            gold: orb.gold,
-          });
-        }
+      for (const orb of this.orbManager.active) {
+        if (!touchesOrb(orb, previous, p)) continue;
+        const claimed = this.orbManager.claim(orb.id, orb.generation, now);
+        if (!claimed) continue;
+        const level = p.level,
+          gains = orbReward(claimed.tier, level);
+        p.steps += gains.steps;
+        p.gems += gains.gems;
+        reward(p, gains.xp);
+        const old = this.streaks.get(p.id);
+        const streak =
+          old && now - old.last <= ORB_BALANCE.streakWindowMs
+            ? old.count + 1
+            : 1;
+        this.streaks.set(p.id, { last: now, count: streak });
+        const event: PickupEvent = {
+          orb: claimed,
+          player: p.id,
+          level,
+          streak,
+          ...gains,
+        };
+        this.broadcast("pickup", event);
+      }
     }
+    const patch = this.orbManager.flush();
+    if (patch) this.broadcast("orbPatch", patch);
     this.broadcast("snapshot", {
       players: this.players,
-      hidden: Object.keys(this.cooldowns)
-        .filter((id) => this.cooldowns[+id] > now)
-        .map(Number),
+      orbRevision: this.orbManager.revision,
       time: now,
     });
   }

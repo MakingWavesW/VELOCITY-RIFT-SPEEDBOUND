@@ -27,10 +27,24 @@ Desktop: WASD/arrows move, Space jumps, drag rotates the camera, wheel zooms, M 
 - Locally bundled Lilita One and Nunito fonts. Responsive HUD with animated counters, XP, live roster, live-position island map, settings and help. No fictional race announcements or unavailable shop/pet buttons.
 - Personal day/night atmosphere, graphics quality, camera sensitivity and reduced-motion settings persist locally. They do not change server time or progression. Audio is not implemented, so there are no inactive audio sliders.
 
-## Multiplayer and gameplay
-The existing Colyseus protocol, 25 Hz authoritative movement, sequenced input, prediction/reconciliation, remote interpolation, XP formulas and original 72 collectibles are preserved. Additional collectible routes lead into the larger island. The server controls rewards, shared 10-second orb cooldowns, collisions, launch pads and hoop crossings. Blocked movement no longer earns Steps. Short jump inputs are retained until the next server tick, including when a later packet arrives first within that tick.
+## Orb-driven gameplay
+The world has **272 shared random orb slots across nine named routes**. The server chooses every location and tier, validates swept-distance pickups, grants rewards exactly once, and respawns orbs at a different valid position on their route. Clients render only received state. Blue is common, Purple is less common, and Red is rare; Gems remain available.
 
-Progress is **session-only** and resets on disconnect/rejoin. No save data migration is needed because the supplied project had no persistent profiles. Only visual preferences use localStorage.
+| Tier | Level 1 Steps / XP | Level 10 Steps / XP | Respawn delay |
+|---|---|---|---|
+| Blue | 2 / 2 | 10 / 10 | 6–10 seconds |
+| Purple | 5 / 5 | 25 / 25 | 10–15 seconds |
+| Red | 10 / 10 | 50 / 50 | 14–22 seconds |
+| Gold Gem | 10 / 15, plus 3 Gems | unchanged | 10–15 seconds |
+
+The shared reward function grows linearly with level and caps the level multiplier at 20. Server-only multiplier inputs are reserved for future rebirths/worlds/upgrades; no unfinished system is enabled. Route-specific rarity weights make First Steps beginner-friendly, Amethyst Grove Purple-rich, and Scarlet Skyline/Ember Hideaway Red-rich. The Skyline route now connects its terrace to a real tower roof. Route signs and flat color markers guide exploration; markers are not collectible orbs.
+
+The HUD displays exact server-confirmed amounts, tier-colored floating feedback, current-level reward previews, and a visual-only 4.5-second pickup streak. A `rift:orb-pickup` browser event is available for a future audio adapter; no sound engine is claimed. Orbs have smooth colored shells, bright inner cores, pulsing halos, hover motion and confirmed-pickup particles.
+
+## Multiplayer and progression
+The existing Colyseus room, 25 Hz authoritative movement, sequenced inputs, prediction/reconciliation, remote interpolation, level thresholds and speed formula remain intact. Spawn positions and tier rewards intentionally replace the old fixed 72-orb/route layout. Building collisions, launch pads and server-validated hoops remain functional. Orb changes use revisioned delta packets; a rate-limited full-state sync handles initial entry and revision gaps.
+
+Progress is **session-only** and resets on disconnect/rejoin. Only visual preferences use localStorage. Deploy matching client and server versions: the new orb protocol is incompatible with an old client/server pairing.
 
 ## Validation
 With the server running:
@@ -39,26 +53,29 @@ With the server running:
 npm test
 npm run build
 ```
-The 10 tests cover malformed inputs; two actual WebSocket clients; movement/jump/reward synchronization; currency spoof rejection; coalesced jump packets; a full launch-to-hoop route; shared bounds/collision; collectible accessibility; staircase/landing behavior; and hoop crossing edge cases.
+The 17 tests cover tier scaling, rarity statistics, 24 seeded world layouts, valid separated spawns, single-use claims, relocated respawns, same-tick race conditions, two-client synchronization, spoof rejection, movement, jumps, hoops and the climbable roof route.
 
 With both server and Vite running:
 
 ```sh
-node tests/visual.mjs
+node tests/orb-browser.mjs
 ```
-This uses `/usr/bin/chromium` by default. Set `CHROMIUM_PATH` to your installed Chromium executable on other systems. It tests two isolated browser contexts, rendered remote movement/jumping, menus, night mode, leaving, and emulated mobile joystick input. Actual screenshots and measurement output go to `artifacts/`. Tests should run against an otherwise idle development world; do not edit source during browser tests because Vite reloads the page.
+This uses `/usr/bin/chromium` by default. Set `CHROMIUM_PATH` to your installed Chromium executable on other systems. It tests two isolated browser contexts, identical random layouts, real keyboard-driven pickup, exact colored HUD feedback, shared disappearance, relocated respawn, night mode, and mobile joystick/layout. Screenshots and measurements go to `artifacts/orbs/`. The earlier `tests/visual.mjs` remains available for broader visual smoke testing. Tests should run against an otherwise idle development world; do not edit source during browser tests because Vite reloads the page.
 
-See [the overhaul report](docs/VISUAL-OVERHAUL.md) for evidence and limitations. Automated sessions are test clients, not human playtest evidence. Software rendering and mobile emulation do not establish real-device FPS targets.
+See [the orb-system report](docs/ORB-SYSTEM.md) for evidence and limitations. Automated sessions are test clients, not human playtest evidence. Software rendering and mobile emulation do not establish real-device FPS targets.
 
 ## Deployment
 Client and backend deploy separately. `npm run build` produces the static browser client in `dist/`; it does not embed the Node server. Set `VITE_SERVER_URL=wss://your-backend.example` in `.env` **before** building. Serve the client over HTTPS and run `npm ci` followed by `npm run server` on a persistent Node host. `PORT` defaults to 2567; `/health` is the readiness route. Configure TLS, WebSocket upgrades and permitted origins at your reverse proxy. The TypeScript backend runner is a development dependency, so do not use `npm ci --omit=dev` with these commands. Hosting and bandwidth incur costs.
 
 ## Still unfinished
-Persistent PostgreSQL profiles, authenticated reconnect, accounts, parties/room codes, region selection, races/global rankings, pet and trail inventories, rebirth, shops, quests, additional dimensions, audio, platform SDKs, production hardening and 20-player load testing. Buildings have solid walls; the dedicated skyline terrace is climbable, but there is no complete rooftop bridge network. Small decorative trees, lamps and benches do not block movement. No claim of Playgama certification, YouTube Playables compatibility, real-phone performance, or production readiness is made.
+Persistent PostgreSQL profiles, authenticated reconnect, accounts, parties/room codes, region selection, races/global rankings, pet and trail inventories, rebirth, shops, quests, additional dimensions, audio, platform SDKs, production hardening and 20-player load testing. Buildings have solid walls; the skyline terrace and first tower roof are connected, but there is no island-wide rooftop network. Small decorative trees, lamps and benches do not block movement. No claim of Playgama certification, YouTube Playables compatibility, real-phone performance, or production readiness is made.
 
 ## Source layout
 - `shared/world.ts`: districts, buildings/solids, ramps, hoops, bounds and crossing geometry.
 - `shared/game.ts`: existing progression and deterministic movement used by client/server.
+- `shared/orbs.ts`, `shared/orbRoutes.ts`: tier balance, reward formulas, protocol types, route quotas, weighting and spawn validation.
+- `server/orbManager.ts`: authoritative lifecycle, random location selection, generation IDs and swept pickup geometry.
+- `src/world/orbs.ts`: three-draw instanced orb renderer.
 - `server/index.ts`: room, authoritative rewards and simulation, health endpoint.
 - `src/world/`: reusable procedural models, environment, instancing and pooled effects.
 - `src/player/avatar.ts`: character model and locally derived animation states.

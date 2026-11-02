@@ -113,6 +113,18 @@ for (let i = 0; i < 20; i++)
     style: 0,
   });
 solids.push({ x: 90, z: 120, w: 20, d: 22, h: 12, kind: "platform", style: 0 });
+// Scarlet Skyline: a narrow elevated run and stairs connecting the first tower roof.
+solids.push({ x: 90, z: 140, w: 4, d: 20, h: 12, kind: "platform", style: 0 });
+for (let i = 0; i < 24; i++)
+  solids.push({
+    x: 101 + i * 1.5,
+    z: 120,
+    w: 1.5,
+    d: 4,
+    h: 12 + (i + 1) * 0.6,
+    kind: "platform",
+    style: 0,
+  });
 export const ramps = [
   { x: 0, z: -63, w: 7, d: 9 },
   { x: 190, z: -150, w: 9, d: 12 },

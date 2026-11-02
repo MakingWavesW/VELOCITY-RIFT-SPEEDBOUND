@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { move, orbs, DT, type Player } from "../shared/game.js";
+import { move, DT, type Player } from "../shared/game.js";
 import {
   WORLD_HALF,
   solids,
@@ -37,15 +37,6 @@ test("buildings block movement, and wall sliding remains possible", () => {
   move(p, { seq: 0, x: 1, z: 1, jump: false });
   assert.ok(p.x < b.x - b.w / 2 - 0.5);
   assert.ok(p.z > b.z);
-});
-test("all collectible locations are accessible and IDs are stable", () => {
-  assert.equal(orbs[0].x, 0);
-  assert.equal(orbs[0].z, 12);
-  for (const [i, o] of orbs.entries()) {
-    assert.equal(o.id, i);
-    assert.equal(blocked(o.x, o.z, 0), false, `orb ${i} inside building`);
-    assert.ok(Math.abs(o.x) < 437 && Math.abs(o.z) < 437);
-  }
 });
 test("launch pads use the same grounded trigger as the rendered layout", () => {
   const r = ramps[0],
@@ -93,4 +84,15 @@ test("hoop plane accepts real crossings and rejects near misses and standing ins
     crossesHoop(h, { x: h.x, y: h.y, z: h.z }, { x: h.x, y: h.y, z: h.z }),
     false,
   );
+});
+test("new skyline stairs connect the terrace to the actual tower roof", () => {
+  const p = player(90, 67);
+  for (let i = 0; i < 150; i++) move(p, { seq: i, x: 0, z: 1, jump: false });
+  for (let i = 0; i < 126; i++)
+    move(p, { seq: 150 + i, x: 1, z: 0, jump: false });
+  assert.ok(p.y > 26);
+  for (let i = 0; i < 30; i++)
+    move(p, { seq: 276 + i, x: 0, z: -1, jump: false });
+  assert.ok(p.z < 113);
+  assert.equal(p.y, 26);
 });

@@ -17,27 +17,6 @@ export type Player = {
   moving: boolean;
   launchCooldown?: number;
 };
-export const orbs = Array.from({ length: 72 }, (_, i) => {
-  const a = (i * Math.PI) / 12;
-  const r = 12 + Math.floor(i / 24) * 13;
-  return { id: i, x: Math.sin(a) * r, z: Math.cos(a) * r, gold: i % 7 === 0 };
-});
-// Preserve the original 72 collectibles and their rewards; add routes to each district.
-for (const [x, z, dx, dz] of [
-  [0, -60, 0, -1],
-  [-85, -100, -1, 0],
-  [190, -65, 0, -1],
-  [-90, 170, -1, 0],
-  [90, 170, 1, 0],
-  [0, 100, 0, 1],
-]) {
-  for (let i = 0; i < 24; i++) {
-    const ox = x + dx * i * 10,
-      oz = z + dz * i * 10;
-    if (!blocked(ox, oz, 0))
-      orbs.push({ id: orbs.length, x: ox, z: oz, gold: i % 7 === 0 });
-  }
-}
 export const speed = (p: Player) => Math.min(32, 9 + (p.level - 1) * 0.7);
 export function move(p: Player, input: Input, dt = DT) {
   const oldX = p.x,

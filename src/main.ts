@@ -1,6 +1,13 @@
+import { createOrbRenderer } from "./world/orbs";
+import {
+  type OrbState,
+  type OrbPatch,
+  type PickupEvent,
+  ORB_TYPES,
+} from "../shared/orbs";
 import * as T from "three";
 import { Client, type Room } from "colyseus.js";
-import { DT, move, orbs, speed, type Player, type Input } from "../shared/game";
+import { DT, move, speed, type Player, type Input } from "../shared/game";
 import { hoops } from "../shared/world";
 import { createWorld } from "./world/environment";
 import { createAvatar } from "./player/avatar";
@@ -19,6 +26,7 @@ renderer.toneMappingExposure = 1.05;
 renderer.shadowMap.type = T.PCFSoftShadowMap;
 renderer.shadowMap.autoUpdate = false;
 document.body.prepend(renderer.domElement);
+const orbRenderer = createOrbRenderer(scene);
 const world = createWorld(scene),
   effects = createEffects(scene);
 function applySettings() {
@@ -37,6 +45,13 @@ let states: Record<string, Player> = {},
   seq = 0,
   pending: Input[] = [],
   connected = false;
+let lastOrbSync = 0;
+function requestOrbSync() {
+  if (room && performance.now() - lastOrbSync > 1000) {
+    lastOrbSync = performance.now();
+    room.send("orbSync");
+  }
+}
 const keys = new Set<string>();
 let yaw = 0,
   distance = 22,
@@ -146,6 +161,8 @@ $("join").onclick = async () => {
     local = undefined;
     acc = 0;
     states = {};
+    orbRenderer.clear();
+    lastOrbSync = -Infinity;
     connected = true;
     clearInput();
     $("entry").style.display = "none";
@@ -156,7 +173,7 @@ $("join").onclick = async () => {
       "snapshot",
       (s: {
         players: Record<string, Player>;
-        hidden: number[];
+        orbRevision: number;
         time: number;
       }) => {
         states = s.players;
@@ -174,20 +191,26 @@ $("join").onclick = async () => {
           hud.snapshot(p, states);
         }
         setStatus(`● CONNECTED · ${Object.keys(states).length}/20`);
-        const hidden = new Set(s.hidden);
-        world.orbMeshes.forEach((m, i) => (m.visible = !hidden.has(i)));
+        if (s.orbRevision > orbRenderer.revision) requestOrbSync();
       },
     );
-    room.onMessage(
-      "pickup",
-      (v: { id: number; player: string; gold: boolean }) => {
-        const orb = orbs[v.id];
-        if (orb && !hud.settings.comfort)
-          effects.emit(orb.x, 1.2, orb.z, v.gold ? 0xffcf68 : 0x70efff);
-        if (v.player === room?.sessionId)
-          hud.toast(v.gold ? "+3 GEMS · +15 XP" : "+10 STEPS · +10 XP");
-      },
-    );
+    room.onMessage("orbState", (state: OrbState) => orbRenderer.sync(state));
+    room.onMessage("orbPatch", (patch: OrbPatch) => {
+      if (!orbRenderer.patch(patch)) requestOrbSync();
+    });
+    room.onMessage("pickup", (event: PickupEvent) => {
+      const color = ORB_TYPES[event.orb.tier].color;
+      if (!hud.settings.comfort)
+        effects.emit(
+          event.orb.x,
+          event.orb.y,
+          event.orb.z,
+          color,
+          event.orb.tier === "red" ? 36 : 20,
+        );
+      if (event.player === room?.sessionId) hud.pickup(event);
+    });
+    requestOrbSync();
     room.onMessage("hoop", (v: { id: number; player: string; xp: number }) => {
       avatars.get(v.player)?.wave(clock.elapsedTime);
       const h = hoops[v.id];
@@ -200,9 +223,18 @@ $("join").onclick = async () => {
     });
     room.onLeave(() => {
       connected = false;
+      let lastOrbSync = 0;
+      function requestOrbSync() {
+        if (room && performance.now() - lastOrbSync > 1000) {
+          lastOrbSync = performance.now();
+          room.send("orbSync");
+        }
+      }
       clearInput();
       pending = [];
       states = {};
+      orbRenderer.clear();
+      hud.clearPickups();
       setStatus("● DISCONNECTED");
       hud.panel.close();
       $("entry").style.display = "flex";
@@ -315,6 +347,7 @@ function frame() {
     renderer.shadowMap.needsUpdate = true;
     shadowTimer = 0;
   }
+  orbRenderer.update(t, camera, hud.settings.comfort);
   renderer.render(scene, camera);
 }
 camera.position.set(0, 14, 25);
@@ -331,6 +364,8 @@ if ((import.meta as unknown as { env: { DEV: boolean } }).env.DEV)
     get: () => ({
       players: JSON.parse(JSON.stringify(states)),
       localId: room?.sessionId,
+      orbRevision: orbRenderer.revision,
+      orbs: orbRenderer.active,
       avatars: [...avatars].map(([id, a]) => ({
         id,
         x: a.g.position.x,

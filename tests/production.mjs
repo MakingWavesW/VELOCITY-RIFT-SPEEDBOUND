@@ -30,8 +30,17 @@ try {
   await p.waitForFunction(() =>
     document.querySelector("#connection").textContent.includes("CONNECTED"),
   );
+  await p.bringToFront();
+  await p
+    .locator("canvas")
+    .first()
+    .click({ position: { x: 600, y: 400 } });
   await p.keyboard.down("w");
-  await p.waitForTimeout(2000);
+  await p.waitForFunction(
+    () => Number(document.querySelector("#steps").textContent) > 0,
+    {},
+    { timeout: 15000 },
+  );
   await p.keyboard.up("w");
   assert.ok(Number(await p.locator("#steps").textContent()) > 0);
   await p.screenshot({ path: "artifacts/production-desktop.png" });

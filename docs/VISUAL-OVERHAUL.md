@@ -1,5 +1,7 @@
 # Visual overhaul implementation report
 
+Historical report for the visual-overhaul release. The later [orb-system update](ORB-SYSTEM.md) replaces the fixed collectible layout and rewards and extends the roof route.
+
 ## Baseline and scope
 The supplied ZIP was compared byte-for-byte against the checkout. All 13 supplied files matched. Despite the brief referring to an existing 880-unit map and hoop challenges, the actual source had a 120-unit ground, ±57 movement bounds, 72 orbs, no building collision, and one decorative ring. The original build, two-WebSocket-client tests and browser smoke test passed after starting the backend.
 

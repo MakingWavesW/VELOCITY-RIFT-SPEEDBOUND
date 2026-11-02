@@ -6,7 +6,7 @@ import {
   ramps,
   WORLD_HALF,
 } from "../../shared/world";
-import { orbs } from "../../shared/game";
+import { orbRoutes, validOrbPoint } from "../../shared/orbRoutes";
 import {
   Batch,
   cube,
@@ -99,8 +99,8 @@ export function createWorld(scene: T.Scene) {
     const color = [0x63bbdf, 0xdc93b9, 0xa49add, 0xeac269, 0x6cc6b2][s.style];
     b.add(bevel, color, s.x, s.h / 2, s.z, s.w, s.h, s.d);
     b.box(0x48657e, s.x, 0.5, s.z, s.w + 1, 1, s.d + 1);
-    b.add(bevel, 0x3f5773, s.x, s.h, s.z, s.w + 1.5, 0.9, s.d + 1.5);
-    b.box(0xcde8eb, s.x, s.h + 1, s.z, s.w * 0.68, 1, s.d * 0.68);
+    b.add(bevel, 0x3f5773, s.x, s.h - 0.45, s.z, s.w + 1.5, 0.9, s.d + 1.5);
+    b.box(0xcde8eb, s.x, s.h - 0.06, s.z, s.w * 0.68, 0.12, s.d * 0.68);
     b.box(0x244158, s.x, 1.8, s.z + s.d / 2 + 0.1, 3, 3.6, 0.3);
     b.box(0xffdc9c, s.x, 3.8, s.z + s.d / 2 + 0.4, 4, 0.25, 1.5);
     for (let y = 6; y < s.h - 1; y += 4.5)
@@ -289,55 +289,33 @@ export function createWorld(scene: T.Scene) {
       );
     }
   }
+  // Flat route waymarkers are scenery, never client-only collectible copies.
+  for (const route of orbRoutes) {
+    const sign = label(
+      route.name.toUpperCase(),
+      "#" + route.color.toString(16).padStart(6, "0"),
+      9,
+    );
+    sign.position.set(route.sign.x, route.sign.y + 4, route.sign.z);
+    scene.add(sign);
+    b.box(
+      0x2e5069,
+      route.sign.x,
+      route.sign.y + 1.7,
+      route.sign.z,
+      0.3,
+      3.4,
+      0.3,
+    );
+    route.points.forEach((p, i) => {
+      if (i % 4 || !validOrbPoint(p)) return;
+      b.box(route.color, p.x, p.y + 0.31, p.z, 1.6, 0.06, 0.3, true);
+    });
+  }
+  // Scarlet terrace edge paint and roof target visually match the shared support heights.
+  for (const x of [88.3, 91.7])
+    b.box(0xff7766, x, 12.07, 140, 0.16, 0.08, 20, true);
   b.finish(scene);
-  const gemGeometry = new T.OctahedronGeometry(0.65),
-    orbGeometry = new T.IcosahedronGeometry(0.45, 1);
-  // One draw for each reward type and one for all soft halos, regardless of orb count.
-  const orbInstances = new T.InstancedMesh(
-    orbGeometry,
-    material(0x72edff, true),
-    orbs.length,
-  );
-  const gemInstances = new T.InstancedMesh(
-    gemGeometry,
-    material(0xffcd64, true),
-    orbs.length,
-  );
-  orbInstances.boundingSphere = gemInstances.boundingSphere = new T.Sphere(
-    new T.Vector3(),
-    650,
-  );
-  scene.add(orbInstances, gemInstances);
-  const haloPositions = new Float32Array(orbs.length * 3),
-    haloColors = new Float32Array(orbs.length * 3);
-  const haloGeo = new T.BufferGeometry();
-  haloGeo.setAttribute("position", new T.BufferAttribute(haloPositions, 3));
-  haloGeo.setAttribute("color", new T.BufferAttribute(haloColors, 3));
-  const glow = aura(0xffffff, 1);
-  const glowMaterial = glow.material as T.SpriteMaterial;
-  const halo = new T.Points(
-    haloGeo,
-    new T.PointsMaterial({
-      map: glowMaterial.map,
-      size: 1.9,
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.5,
-      depthWrite: false,
-      blending: T.AdditiveBlending,
-    }),
-  );
-  glowMaterial.dispose();
-  halo.frustumCulled = false;
-  scene.add(halo);
-  const orbMeshes = orbs.map((o) => {
-    const m = new T.Object3D();
-    m.position.set(o.x, 1.2, o.z);
-    const color = new T.Color(o.gold ? 0xffc24d : 0x5ee9ff);
-    haloColors.set([color.r, color.g, color.b], o.id * 3);
-    return m;
-  });
-  const hiddenMatrix = new T.Matrix4().makeScale(0, 0, 0);
   const clouds = new T.InstancedMesh(sphere, material(0xf1f5ef), 78);
   const cloudTransform = new T.Object3D();
   for (let i = 0; i < 26; i++)
@@ -391,7 +369,6 @@ export function createWorld(scene: T.Scene) {
   scene.background = skyDay.clone();
   scene.fog = new T.Fog(skyDay, 200, 1050);
   return {
-    orbMeshes,
     rings,
     sun,
     setNight(value: boolean) {
@@ -412,26 +389,6 @@ export function createWorld(scene: T.Scene) {
         o.rotation.y = t * (0.3 + i * 0.1);
       });
       rings.forEach((r) => (r.outer.rotation.z = t * 0.2));
-      orbMeshes.forEach((m, i) => {
-        m.position.y = 1.2 + Math.sin(t * 2 + i) * 0.18;
-        m.rotation.y = t * 0.8;
-        m.updateMatrix();
-        orbInstances.setMatrixAt(
-          i,
-          m.visible && !orbs[i].gold ? m.matrix : hiddenMatrix,
-        );
-        gemInstances.setMatrixAt(
-          i,
-          m.visible && orbs[i].gold ? m.matrix : hiddenMatrix,
-        );
-        haloPositions.set(
-          [m.position.x, m.visible ? m.position.y : -9999, m.position.z],
-          i * 3,
-        );
-      });
-      orbInstances.instanceMatrix.needsUpdate = true;
-      gemInstances.instanceMatrix.needsUpdate = true;
-      haloGeo.attributes.position.needsUpdate = true;
     },
     cameraSolids: solids.filter((s) => s.kind === "building"),
   };
