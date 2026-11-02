@@ -23,9 +23,11 @@ import { createWorld } from "./world/environment";
 import { createAvatar } from "./player/avatar";
 import { createEffects } from "./world/effects";
 import { createHud, $ } from "./ui/hud";
+import { createJourneyUI } from "./ui/journey";
 import "./style.css";
 
 const hud = createHud();
+const journeyUI = createJourneyUI();
 const scene = new T.Scene();
 const camera = new T.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 1800);
 const renderer = new T.WebGLRenderer({ antialias: true });
@@ -204,6 +206,8 @@ $("join").onclick = async () => {
     orbRenderer.clear();
     lastOrbSync = -Infinity;
     connected = true;
+    journeyUI.reset();
+    journeyUI.show();
     clearInput();
     $("entry").style.display = "none";
     renderer.domElement.tabIndex = 0;
@@ -271,14 +275,16 @@ $("join").onclick = async () => {
               effects.emit(p.x, p.y + 2, p.z, 0xffd778, 40);
           }
           hud.snapshot(p, states);
+          journeyUI.snapshot(p);
         }
         setStatus(`● CONNECTED · ${Object.keys(states).length}/20`);
         if (s.orbRevision > orbRenderer.revision) requestOrbSync();
       },
     );
-    room.onMessage("trailInventory", (value: TrailInventory) =>
-      hud.inventory(value),
-    );
+    room.onMessage("trailInventory", (value: TrailInventory) => {
+      hud.inventory(value);
+      journeyUI.inventory(value);
+    });
     room.send("trailInventory");
     room.onMessage("pong", (sent: number) => {
       rtt = performance.now() - sent;
@@ -297,14 +303,20 @@ $("join").onclick = async () => {
           color,
           event.orb.tier === "red" ? 36 : 20,
         );
-      if (event.player === room?.sessionId) hud.pickup(event);
+      if (event.player === room?.sessionId) {
+        hud.pickup(event);
+        journeyUI.pickup(event);
+      }
     });
     requestOrbSync();
     room.onMessage("hoop", (v: { id: number; player: string; xp: number }) => {
       avatars.get(v.player)?.wave(clock.elapsedTime);
       const h = hoops[v.id];
       if (h && !hud.settings.comfort) effects.emit(h.x, h.y, h.z, h.color, 40);
-      if (v.player === room?.sessionId) hud.toast(`RING CLEARED! +${v.xp} XP`);
+      if (v.player === room?.sessionId) {
+        hud.toast(`RING CLEARED! +${v.xp} XP`);
+        journeyUI.ring();
+      }
     });
     room.onMessage("emote", (v: { id: string; text: string }) => {
       avatars.get(v.id)?.wave(clock.elapsedTime);
@@ -312,6 +324,7 @@ $("join").onclick = async () => {
     });
     room.onLeave(() => {
       connected = false;
+      journeyUI.reset();
       local = localPrevious = undefined;
       buffers.clear();
       correction.set(0, 0, 0);
@@ -490,6 +503,7 @@ function frame() {
     shadowTimer = 0;
   }
   orbRenderer.update(t, camera, hud.settings.comfort);
+  journeyUI.navigate(local, orbRenderer.active, cameraYaw);
   // Keep the world connected behind menus; spend preview time on the visible panel.
   if (!hud.panel.open || t - lastWorldRender > 0.25) {
     renderer.render(scene, camera);
