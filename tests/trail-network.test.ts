@@ -95,7 +95,7 @@ test("session milestones equip authoritatively, replicate to late joiners, award
   let b: Room | undefined;
   try {
     await until(
-      () => !!d.inventory && !!d.players[a.sessionId] && d.orbs.size > 200,
+      () => !!d.inventory && !!d.players[a.sessionId] && d.orbs.size >= 50,
     );
     assert.deepEqual(d.inventory!.owned, [DEFAULT_TRAIL]);
     assert.equal(d.players[a.sessionId].equippedTrailId, DEFAULT_TRAIL);

@@ -1,3 +1,10 @@
+import {
+  CRYSTAL_BY_ID,
+  canOpenCrystal,
+  choosePet,
+  PET_BY_ID,
+} from "../shared/pets.js";
+import { randomInt } from "node:crypto";
 import { Rewards } from "./rewards.js";
 import { rewardVerifier } from "./rewardVerifier.js";
 import { Profiles, progress } from "./profiles.js";
@@ -13,11 +20,11 @@ import {
   DEFAULT_TRAIL,
   eligibleTrails,
   resolveOwnedTrail,
-  trailReward,
   type TrailInventory,
 } from "../shared/trails.js";
 import { OrbManager, touchesOrb } from "./orbManager.js";
-import { orbReward, ORB_BALANCE, type PickupEvent } from "../shared/orbs.js";
+import { ORB_BALANCE, type PickupEvent } from "../shared/orbs.js";
+import { pickupReward } from "../shared/pickupReward.js";
 import { hoops, crossesHoop } from "../shared/world.js";
 import express from "express";
 import { createServer } from "node:http";
@@ -34,6 +41,16 @@ import {
 const rewards = new Rewards(profiles, rewardVerifier);
 export class Plaza extends Room {
   rewardChecks = new Set<string>();
+  crystalTimes = new Map<string, number>();
+  petInventory(client: Client) {
+    const p = this.players[client.sessionId];
+    if (p)
+      client.send("petInventory", {
+        owned: p.pets || {},
+        equipped: p.equippedPetId,
+        gems: p.gems,
+      });
+  }
   maxClients = 20;
   profiles = new Map<string, { id: string; token: string }>();
   nextSave = 0;
@@ -65,6 +82,71 @@ export class Plaza extends Room {
     client.send("trailInventory", inventory);
   }
   onCreate() {
+    this.onMessage("petInventory", (client) => this.petInventory(client));
+    this.onMessage("equipPet", (client, id) => {
+      const p = this.players[client.sessionId];
+      if (!p) return;
+      if (
+        id !== null &&
+        (typeof id !== "string" || !PET_BY_ID.has(id) || !p.pets?.[id])
+      )
+        return;
+      p.equippedPetId = id || undefined;
+      this.savePlayer(p.id);
+      this.petInventory(client);
+    });
+    this.onMessage("openCrystal", (client, v) => {
+      const p = this.players[client.sessionId],
+        profile = this.profiles.get(client.sessionId);
+      const fail = (message: string) =>
+        client.send("crystalResult", { error: message });
+      if (
+        !p ||
+        !profile ||
+        typeof v?.id !== "string" ||
+        !/^[a-zA-Z0-9-]{16,64}$/.test(v.id)
+      )
+        return fail("Invalid opening request.");
+      const previous = profiles.crystalResult(profile.id, v.id);
+      if (previous) {
+        client.send("crystalResult", { ...previous, repeated: true });
+        this.petInventory(client);
+        return;
+      }
+      const c = CRYSTAL_BY_ID.get(v.crystal);
+      if (!c || !canOpenCrystal(p, c))
+        return fail("Stand near the crystal and collect enough Gems.");
+      const now = Date.now();
+      if (now - (this.crystalTimes.get(p.id) || 0) < 1500)
+        return fail("Wait for the crystal to settle.");
+      this.crystalTimes.set(p.id, now);
+      const pet = choosePet(c, randomInt(1_000_000) / 1_000_000);
+      if ((p.pets?.[pet] || 0) >= 999)
+        return fail("This companion collection is full.");
+      const next = {
+        ...p,
+        gems: p.gems - c.cost,
+        pets: { ...p.pets, [pet]: (p.pets?.[pet] || 0) + 1 },
+        equippedPetId: p.equippedPetId || pet,
+      };
+      try {
+        if (
+          !profiles.commitCrystal(
+            profile.id,
+            v.id,
+            progress(next, this.ownedTrails.get(p.id)!),
+            { pet, crystal: c.id },
+          )
+        )
+          return;
+      } catch {
+        return fail("Save unavailable. No Gems were spent.");
+      }
+      Object.assign(p, next);
+      this.petInventory(client);
+      client.send("crystalResult", { pet, crystal: c.id });
+    });
+
     this.onMessage("profile", (client) => {
       const p = this.profiles.get(client.sessionId);
       if (p) client.send("profile", { token: p.token });
@@ -259,6 +341,7 @@ export class Plaza extends Room {
     this.orbSyncTimes.delete(client.sessionId);
     this.streaks.delete(client.sessionId);
     this.emotes.delete(client.sessionId);
+    this.crystalTimes.delete(client.sessionId);
     delete this.players[client.sessionId];
     this.inputs.delete(client.sessionId);
   }
@@ -293,11 +376,11 @@ export class Plaza extends Room {
         const claimed = this.orbManager.claim(orb.id, orb.generation, now);
         if (!claimed) continue;
         const level = p.level,
-          gains = trailReward(
-            orbReward(claimed.tier, level),
+          gains = pickupReward(
+            p,
+            claimed.tier,
             resolveOwnedTrail(p.equippedTrailId, this.ownedTrails.get(p.id)!),
           );
-        gains.xp *= rebirthMultiplier(p.rebirths || 0);
         p.steps += gains.steps;
         p.gems += gains.gems;
         reward(p, gains.xp);

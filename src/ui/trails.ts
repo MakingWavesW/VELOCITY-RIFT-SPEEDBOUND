@@ -90,7 +90,7 @@ export function createTrailsPanel(
     el("trailUnlock").textContent =
       d.id === DEFAULT_TRAIL
         ? "Free · Automatically owned · Neutral 1× rewards"
-        : `${owned ? "Unlocked" : "Unlocks"} at runner level ${d.unlockLevel} · Free session milestone`;
+        : `${owned ? "Unlocked" : "Unlocks"} at runner level ${d.unlockLevel} · Free level milestone`;
     const button = el("equipTrail") as HTMLButtonElement;
     button.disabled = !owned || equipped || awaiting;
     button.textContent = awaiting

@@ -95,7 +95,7 @@ export function label(text: string, color = "#ffffff", width = 10) {
   ctx.font = "bold 40px Nunito, sans-serif";
   ctx.textAlign = "center";
   ctx.fillStyle = color;
-  ctx.fillText(text, 256, 78);
+  ctx.fillText(text, 256, 78, 470);
   const tex = new T.CanvasTexture(c);
   tex.colorSpace = T.SRGBColorSpace;
   const sprite = new T.Sprite(

@@ -59,7 +59,7 @@ test("two clients share random layout, exact single reward, disappearance and re
   try {
     await until(
       () =>
-        !!da.state && !!db.state && da.orbs.size > 200 && db.orbs.size > 200,
+        !!da.state && !!db.state && da.orbs.size >= 50 && db.orbs.size >= 50,
     );
     assert.deepEqual([...da.orbs.values()], [...db.orbs.values()]);
     assert.equal(Object.keys(db.state.players).length, 2);
@@ -166,7 +166,7 @@ test("client cannot create a red orb with a spawn message", async () => {
   });
   const d = track(client);
   try {
-    await until(() => d.orbs.size > 200);
+    await until(() => d.orbs.size >= 50);
     client.send("spawnOrb", { tier: "red", x: 0, y: 0, z: 0 });
     await until(() => !client.connection.isOpen);
     assert.equal(d.pickups.length, 0);

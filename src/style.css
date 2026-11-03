@@ -1857,3 +1857,243 @@ body.starting #hud {
   border-radius: 12px;
   background: #89edcb;
 }
+#companionsPanel {
+  width: min(760px, 94vw);
+  max-height: 85vh;
+  border: 0;
+  border-radius: 22px;
+  background: #102f46;
+  color: #f3fbff;
+  padding: 24px;
+  overflow: auto;
+}
+#companionsPanel::backdrop {
+  background: #061927b8;
+}
+#companionsPanel .panel-head {
+  background: #102f46;
+  color: #f3fbff;
+  padding: 8px 0 18px;
+  border-color: #6593a766;
+}
+#companionsPanel .panel-head h2 {
+  font-size: clamp(20px, 4vw, 26px);
+}
+.pet-grid,
+.crystal-chances {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  gap: 12px;
+}
+.pet-grid button,
+.crystal-chances article {
+  border: 1px solid #6593a766;
+  border-radius: 16px;
+  background: #1f4359;
+  padding: 16px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  color: white;
+  text-align: center;
+}
+.pet-grid button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.pet-grid small,
+.crystal-chances small {
+  font-size: 11px;
+}
+.pet-portrait {
+  position: relative;
+  display: block;
+  width: 55px;
+  height: 48px;
+  margin: 12px;
+  border-radius: 45%;
+  background: var(--pet);
+  box-shadow:
+    inset -8px -8px 0 #0002,
+    0 0 20px #78cdff25;
+}
+.pet-portrait i::before,
+.pet-portrait i::after {
+  content: "";
+  position: absolute;
+  width: 6px;
+  height: 9px;
+  background: #193149;
+  top: 18px;
+  border-radius: 50%;
+  left: 15px;
+}
+.pet-portrait i::after {
+  left: 33px;
+}
+.pet-portrait.ears::before,
+.pet-portrait.ears::after {
+  content: "";
+  position: absolute;
+  background: var(--pet);
+  width: 18px;
+  height: 25px;
+  top: -13px;
+  border-radius: 50% 50% 0 0;
+  left: 0;
+}
+.pet-portrait.ears::after {
+  left: 36px;
+}
+.pet-portrait.wing::before,
+.pet-portrait.wing::after {
+  content: "";
+  position: absolute;
+  background: var(--pet);
+  width: 27px;
+  height: 14px;
+  top: 12px;
+  left: -20px;
+  border-radius: 80% 0;
+}
+.pet-portrait.wing::after {
+  left: 47px;
+  transform: scaleX(-1);
+}
+.pet-lineup,
+.crystal-balance {
+  background: #28556d;
+  padding: 14px;
+  border-radius: 12px;
+}
+.crystal-balance span {
+  float: right;
+  color: #ffe09c;
+}
+#openCrystal {
+  display: block;
+  width: 100%;
+  padding: 16px;
+  margin-top: 20px;
+  border-radius: 12px;
+  background: #80e6c4;
+  color: #143c4a;
+  font-weight: 900;
+}
+.crystal-result {
+  color: #ffe2a0;
+  font-weight: 900;
+}
+#crystalInteract {
+  position: fixed;
+  bottom: 180px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 13px 20px;
+  border: 1px solid #b7edff;
+  background: #173e59ed;
+  color: white;
+  border-radius: 14px;
+  z-index: 15;
+}
+#crystalInteract[hidden] {
+  display: none;
+}
+#timedRewardOffer {
+  position: fixed;
+  z-index: 70;
+  right: 20px;
+  top: 30%;
+  width: 230px;
+  padding: 20px;
+  border: 1px solid #8fcee7;
+  border-radius: 20px;
+  background: #12354af5;
+  box-shadow: 0 15px 40px #0004;
+  color: white;
+}
+#timedRewardOffer img {
+  width: 100%;
+  margin-top: 10px;
+}
+#timedRewardOffer p {
+  font-size: 12px;
+}
+#timedRewardOffer button {
+  padding: 9px;
+  border-radius: 8px;
+  margin: 3px;
+}
+#timedRewardOffer .offer-close {
+  position: absolute;
+  right: 6px;
+  top: 4px;
+  background: transparent;
+  color: white;
+  font-size: 23px;
+}
+.watch-offer {
+  background: #85f1c8;
+}
+.dismiss-offer {
+  background: transparent;
+  color: #d8eaff;
+}
+@media (max-width: 700px) {
+  .menu {
+    top: 280px;
+    bottom: auto;
+    transform: none;
+    gap: 5px;
+  }
+  .menu button {
+    min-height: 36px;
+    height: 36px;
+  }
+  #location > span {
+    display: none;
+  }
+  #crystalInteract {
+    bottom: 190px;
+    width: 210px;
+    font-size: 12px;
+  }
+  #timedRewardOffer {
+    width: 205px;
+    right: 8px;
+    top: 30%;
+  }
+  .pet-grid,
+  .crystal-chances {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  #companionsPanel {
+    padding: 16px;
+  }
+}
+@media (max-width: 650px) and (min-height: 601px) {
+  #orbLegend {
+    top: 165px;
+  }
+  #journey {
+    top: 207px;
+  }
+}
+@media (max-height: 600px) {
+  .menu {
+    top: 95px;
+    gap: 3px;
+  }
+  .menu button {
+    min-height: 28px;
+    height: 28px;
+  }
+  .menu .official {
+    height: 30px;
+  }
+  .menu .gear img {
+    height: 24px;
+    width: 24px;
+  }
+}

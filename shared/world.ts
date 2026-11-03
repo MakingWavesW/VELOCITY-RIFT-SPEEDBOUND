@@ -207,3 +207,25 @@ export function crossesHoop(
     h.r - 0.5
   );
 }
+
+// Main City outer skyline: 18 blocks frame the existing neighborhoods without blocking roads.
+export const citySkyline: Solid[] = Array.from({ length: 18 }, (_, i) => ({
+  x:
+    i < 9
+      ? [-385, -280, -225, -140, -80, 70, 140, 250, 385][i]
+      : i < 14
+        ? -390
+        : 390,
+  z: i < 9 ? -395 : -240 + (i % 9) * 65,
+  w: 26,
+  d: 26,
+  h: 35 + (i % 5) * 9,
+  kind: "building",
+  style: i % 5,
+}));
+solids.push(...citySkyline);
+// A roof-level out-and-back loop branches from the already accessible first skyline roof.
+solids.push({ x: 152, z: 105, w: 32, d: 5, h: 26, kind: "platform", style: 0 });
+solids.push({ x: 165, z: 121, w: 5, d: 32, h: 26, kind: "platform", style: 0 });
+solids.push({ x: 149, z: 135, w: 32, d: 5, h: 26, kind: "platform", style: 0 });
+solids.push({ x: 139, z: 122, w: 5, d: 26, h: 26, kind: "platform", style: 0 });

@@ -35,6 +35,7 @@ export class OrbManager {
   revision = 0;
   private slots: Slot[] = [];
   private removed: number[] = [];
+  private activeCache: Orb[] | undefined;
   private spawned: Orb[] = [];
   constructor(
     private random: () => number = Math.random,
@@ -54,18 +55,27 @@ export class OrbManager {
     this.flush();
   }
   get active(): Orb[] {
-    return this.slots.flatMap((s) => (s.orb ? [s.orb] : []));
+    return (this.activeCache ||= this.slots.flatMap((s) =>
+      s.orb ? [s.orb] : [],
+    ));
   }
   private spawn(slot: Slot) {
-    const start = Math.floor(this.random() * slot.route.points.length);
-    for (let attempt = 0; attempt < slot.route.points.length * 2; attempt++) {
+    const zones = slot.route.zones;
+    for (let attempt = 0; attempt < 160; attempt++) {
+      const zone = zones?.[Math.floor(this.random() * zones.length)];
       const point =
-        slot.route.points[(start + attempt) % slot.route.points.length];
-      const p = {
-        x: point.x + (this.random() - 0.5) * 1.5,
-        y: point.y,
-        z: point.z + (this.random() - 0.5) * 1.5,
-      };
+        slot.route.points[Math.floor(this.random() * slot.route.points.length)];
+      const p = zone
+        ? {
+            x: zone.x + (this.random() - 0.5) * zone.w,
+            z: zone.z + (this.random() - 0.5) * zone.d,
+            y: zone.y,
+          }
+        : {
+            x: point.x + (this.random() - 0.5) * 5,
+            z: point.z + (this.random() - 0.5) * 5,
+            y: point.y,
+          };
       if (
         !validOrbPoint(p) ||
         (slot.previous &&
@@ -91,6 +101,7 @@ export class OrbManager {
         z: p.z,
       };
       slot.orb = orb;
+      this.activeCache = undefined;
       this.spawned.push(orb);
       return;
     }
@@ -108,9 +119,11 @@ export class OrbManager {
     if (!s?.orb || s.orb.generation !== generation) return undefined;
     const orb = s.orb;
     const [min, max] = ORB_TYPES[orb.tier].respawn;
-    s.readyAt = now + min + this.random() * (max - min);
+    s.readyAt =
+      this.active.length <= 50 ? now : now + min + this.random() * (max - min);
     s.previous = orb;
     s.orb = undefined;
+    this.activeCache = undefined;
     this.removed.push(id);
     return orb;
   }

@@ -49,7 +49,7 @@ try {
     await page.locator("#name").fill(name);
     await page.locator("#join").click();
     await page.locator("#entry").waitFor({ state: "hidden" });
-    await page.waitForFunction(() => window.riftDiagnostics?.orbs.length > 200);
+    await page.waitForFunction(() => window.riftDiagnostics?.orbs.length >= 50);
   }
   const first = await p.evaluate(() => window.riftDiagnostics),
     second = await q.evaluate(() => window.riftDiagnostics);
@@ -168,7 +168,7 @@ try {
   await m.locator("#name").fill("Touch Runner");
   await m.locator("#join").click();
   await m.locator("#entry").waitFor({ state: "hidden" });
-  await m.waitForFunction(() => window.riftDiagnostics?.orbs.length > 200);
+  await m.waitForFunction(() => window.riftDiagnostics?.orbs.length >= 50);
   const s = await m.locator("#stick").boundingBox();
   await m.dispatchEvent("#stick", "pointerdown", {
     pointerId: 1,

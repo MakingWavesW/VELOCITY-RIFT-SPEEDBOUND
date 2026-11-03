@@ -1,3 +1,7 @@
+import { createCompanions } from "./ui/companions";
+import { createPetRenderer } from "./world/pets";
+import { createTimedOffer } from "./ui/timedOffer";
+import { daylight } from "../shared/dayNight";
 import { platform } from "./platform/bridge";
 import { confirmReward } from "./ui/rewardOffer";
 import { audio } from "./media/audio";
@@ -33,6 +37,11 @@ import { createJourneyUI } from "./ui/journey";
 import "./style.css";
 
 const hud = createHud();
+const companions = createCompanions((type, value) => {
+  if (connected) room?.send(type, value);
+  else hud.toast("Join a world first.");
+});
+const timedOffer = createTimedOffer((kind) => hud.onRewardRequest(kind));
 const journeyUI = createJourneyUI();
 journeyUI.onComplete = () => audio.effect("quest");
 const scene = new T.Scene();
@@ -46,10 +55,12 @@ renderer.shadowMap.type = T.PCFSoftShadowMap;
 renderer.shadowMap.autoUpdate = false;
 document.body.prepend(renderer.domElement);
 const orbRenderer = createOrbRenderer(scene);
+const petRenderer = createPetRenderer(scene);
 const world = createWorld(scene),
   effects = createEffects(scene);
 function applySettings() {
   world.setNight(hud.settings.night);
+  world.setCycle(hud.settings.dayCycle);
   renderer.setPixelRatio(
     Math.min(devicePixelRatio, hud.settings.quality === "low" ? 0.85 : 1.5),
   );
@@ -225,6 +236,9 @@ $("join").onclick = async () => {
       }
     });
     room.send("profile");
+    room.onMessage("petInventory", (v) => companions.inventory(v));
+    room.onMessage("crystalResult", (v) => companions.result(v));
+    room.send("petInventory");
     room.onMessage("progression", (v: { ok: boolean; message: string }) => {
       hud.toast(v.message);
       if (v.ok) {
@@ -235,6 +249,7 @@ $("join").onclick = async () => {
     room.onMessage(
       "rewardOffer",
       async (v: { available: boolean; message: string }) => {
+        timedOffer.configure(v.available && platform.rewardsSupported);
         const kind = offeredReward;
         if (!v.available || !platform.rewardsSupported || !kind) {
           rewardBusy = false;
@@ -425,6 +440,8 @@ $("join").onclick = async () => {
       connected = false;
       rewardBusy = false;
       celebration.reset();
+      companions.reset();
+      timedOffer.reset();
       setMediaState("MAIN_MENU");
       journeyUI.reset();
       local = localPrevious = undefined;
@@ -566,7 +583,32 @@ function frame() {
     }
   const x = local?.x || 0,
     z = local?.z || 0;
-  world.update(t, dt, x, z);
+  const serverTime = lastSnapshot
+    ? performance.now() + serverOffset
+    : Date.now();
+  world.update(t, dt, x, z, serverTime);
+  companions.update(connected ? local : undefined);
+  timedOffer.update(
+    elapsed * 1000,
+    connected && !inputPaused(),
+    !!local && !local.moving && local.verticalVelocity === 0,
+    !!document.querySelector("dialog[open]") || companions.busy,
+  );
+  petRenderer.update(
+    [...avatars]
+      .filter(
+        ([, a]) => a.g.position.distanceToSquared(camera.position) < 120 * 120,
+      )
+      .map(([id, a]) => ({
+        id,
+        pet: states[id]?.equippedPetId,
+        position: a.g.position,
+        angle: a.g.rotation.y,
+      })),
+    t,
+    dt,
+    hud.settings.comfort,
+  );
   effects.update(dt);
   hud.update(dt);
   const boost = Math.max(
@@ -657,6 +699,9 @@ if ((import.meta as unknown as { env: { DEV: boolean } }).env.DEV) {
   Object.defineProperty(window, "riftDiagnostics", {
     get: () => ({
       media: audio.diagnostics,
+      dayNight: daylight(
+        lastSnapshot ? performance.now() + serverOffset : Date.now(),
+      ),
       players: JSON.parse(JSON.stringify(states)),
       localId: room?.sessionId,
       predicted: local ? { ...local } : undefined,

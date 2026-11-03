@@ -1,3 +1,4 @@
+import { CRYSTALS } from "./pets.js";
 import { WORLD_HALF, blocked, groundAt } from "./world.js";
 import { ORB_BALANCE, ORB_TYPES, type OrbTier } from "./orbs.js";
 export type Point = { x: number; y: number; z: number };
@@ -9,6 +10,7 @@ export type OrbRoute = {
   weights: Record<OrbTier, number>;
   points: Point[];
   color: number;
+  zones?: { x: number; z: number; w: number; d: number; y: number }[];
   sign: Point;
 };
 const line = (
@@ -160,12 +162,40 @@ export const orbRoutes: OrbRoute[] = [
     sign: { x: -88, y: 0, z: 380 },
   },
 ];
+// 96 shared slots, continuously sampled over valid ground, gardens and accessible roofs.
+const zones: Record<
+  string,
+  { x: number; z: number; w: number; d: number; y: number }[]
+> = {
+  starter: [{ x: 0, z: 0, w: 66, d: 66, y: 0 }],
+  north: [{ x: 0, z: -205, w: 130, d: 280, y: 0 }],
+  south: [{ x: 0, z: 180, w: 150, d: 280, y: 0 }],
+  downtown: [{ x: -220, z: -200, w: 280, d: 250, y: 0 }],
+  garden: [{ x: -230, z: 190, w: 230, d: 240, y: 0 }],
+  speedway: [{ x: 230, z: -190, w: 270, d: 280, y: 0 }],
+  skyline: [
+    { x: 125, z: 105, w: 20, d: 20, y: 26 },
+    { x: 152, z: 105, w: 27, d: 3, y: 26 },
+    { x: 165, z: 122, w: 3, d: 26, y: 26 },
+    { x: 90, z: 120, w: 17, d: 18, y: 12 },
+  ],
+  hidden: [{ x: -330, z: 270, w: 80, d: 100, y: 0 }],
+  coast: [{ x: 0, z: 395, w: 300, d: 55, y: 0 }],
+};
+const populations = [24, 10, 8, 10, 10, 10, 8, 6, 10];
+orbRoutes.forEach((r, i) => {
+  r.count = populations[i];
+  r.zones = zones[r.id];
+  r.weights.gem = r.id === "starter" ? 24 : 16;
+});
 // Decorative ponds are exclusion volumes too, not just the ocean boundary.
 const ponds = [
   { x: -210, z: 120, rx: 16, rz: 12 },
   { x: -260, z: 230, rx: 16, rz: 12 },
 ];
 export function validOrbPoint(p: Point) {
+  if (CRYSTALS.some((c) => Math.hypot(p.x - c.x, p.z - c.z) < 4 && p.y < 4))
+    return false;
   if (
     ![p.x, p.y, p.z].every(Number.isFinite) ||
     Math.abs(p.x) > WORLD_HALF - 8 ||

@@ -11,6 +11,8 @@ export type Progress = Pick<
   | "gems"
   | "level"
   | "xp"
+  | "pets"
+  | "equippedPetId"
   | "rebirths"
   | "boostUntil"
   | "equippedTrailId"
@@ -22,7 +24,7 @@ export class Profiles {
     if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
     this.db = new DatabaseSync(path);
     this.db.exec(
-      "PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS profiles (id TEXT PRIMARY KEY, data TEXT NOT NULL); CREATE TABLE IF NOT EXISTS reward_transactions (id TEXT PRIMARY KEY, profile TEXT NOT NULL, kind TEXT NOT NULL, created INTEGER NOT NULL, expires INTEGER NOT NULL, claimed INTEGER); CREATE INDEX IF NOT EXISTS reward_profile ON reward_transactions(profile)",
+      "PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS profiles (id TEXT PRIMARY KEY, data TEXT NOT NULL); CREATE TABLE IF NOT EXISTS reward_transactions (id TEXT PRIMARY KEY, profile TEXT NOT NULL, kind TEXT NOT NULL, created INTEGER NOT NULL, expires INTEGER NOT NULL, claimed INTEGER); CREATE INDEX IF NOT EXISTS reward_profile ON reward_transactions(profile); CREATE TABLE IF NOT EXISTS crystal_transactions (profile TEXT NOT NULL, id TEXT NOT NULL, result TEXT NOT NULL, PRIMARY KEY(profile,id))",
     );
   }
   reserveReward(profile: string, kind: RewardKind, now: number) {
@@ -71,6 +73,39 @@ export class Profiles {
       throw e;
     }
   }
+  crystalResult(profile: string, id: string) {
+    const row = this.db
+      .prepare(
+        "SELECT result FROM crystal_transactions WHERE profile=? AND id=?",
+      )
+      .get(profile, id);
+    return row
+      ? (JSON.parse(String(row.result)) as { pet: string; crystal: string })
+      : undefined;
+  }
+  commitCrystal(
+    profile: string,
+    id: string,
+    data: Progress,
+    result: { pet: string; crystal: string },
+  ) {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      if (this.crystalResult(profile, id)) {
+        this.db.exec("ROLLBACK");
+        return false;
+      }
+      this.db
+        .prepare("INSERT INTO crystal_transactions VALUES(?,?,?)")
+        .run(profile, id, JSON.stringify(result));
+      this.save(profile, data);
+      this.db.exec("COMMIT");
+      return true;
+    } catch (e) {
+      this.db.exec("ROLLBACK");
+      throw e;
+    }
+  }
   acquire(token?: unknown) {
     const valid = typeof token === "string" && /^[a-f0-9]{64}$/.test(token);
     let secret = valid ? (token as string) : randomBytes(32).toString("hex");
@@ -99,6 +134,7 @@ export class Profiles {
           equippedTrailId: DEFAULT_TRAIL,
           owned: [DEFAULT_TRAIL],
         };
+    data.pets ||= {};
     this.active.add(id);
     this.save(id, data);
     return { id, token: secret, data };
@@ -124,6 +160,8 @@ export function progress(p: Player, owned: Set<string>): Progress {
     level: p.level,
     xp: p.xp,
     rebirths: p.rebirths || 0,
+    pets: p.pets || {},
+    equippedPetId: p.equippedPetId,
     boostUntil: p.boostUntil || 0,
     equippedTrailId: p.equippedTrailId,
     owned: [...owned],

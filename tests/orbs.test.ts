@@ -49,7 +49,10 @@ test("random layouts remain valid, separated, varied, and district weighted over
   for (let seed = 1; seed <= 24; seed++) {
     const manager = new OrbManager(rng(seed), 0),
       orbs = manager.active;
-    assert.ok(orbs.length >= 250, `population ${orbs.length}`);
+    assert.ok(
+      orbs.length >= 90 && orbs.length <= 100,
+      `population ${orbs.length}`,
+    );
     for (const a of orbs) {
       counts[a.tier]++;
       total++;
@@ -65,7 +68,7 @@ test("random layouts remain valid, separated, varied, and district weighted over
       orbs.some((o) => o.y > 20),
       "roof rewards present",
     );
-    assert.ok(orbs.filter((o) => o.route === "starter").length >= 30);
+    assert.ok(orbs.filter((o) => o.route === "starter").length >= 20);
   }
   assert.ok(counts.blue > counts.purple && counts.purple > counts.red);
   assert.ok(counts.red / total < 0.16);
@@ -131,4 +134,11 @@ test("respawn collected in the same tick cannot reappear in the outgoing patch",
   const patch = m.flush()!;
   assert.ok(patch.removed.includes(orb.id));
   assert.ok(!patch.spawned.some((o) => o.id === orb.id));
+});
+
+test("heavy collection replenishes at least fifty slots on the next tick", () => {
+  const m = new OrbManager(rng(9), 0);
+  for (const o of m.active) m.claim(o.id, o.generation, 1);
+  m.tick(2);
+  assert.ok(m.active.length >= 50 && m.active.length <= 100);
 });

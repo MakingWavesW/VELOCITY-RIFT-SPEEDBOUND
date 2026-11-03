@@ -20,6 +20,8 @@ export type Player = {
   moving: boolean;
   launchCooldown?: number;
   rebirths?: number;
+  pets?: Record<string, number>;
+  equippedPetId?: string;
   boostUntil?: number;
   speedMultiplier?: number;
 };

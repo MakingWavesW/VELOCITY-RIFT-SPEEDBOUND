@@ -1,3 +1,5 @@
+import { daylight } from "../../shared/dayNight";
+import { CRYSTALS } from "../../shared/pets";
 import * as T from "three";
 import {
   districts,
@@ -315,6 +317,38 @@ export function createWorld(scene: T.Scene) {
   // Scarlet terrace edge paint and roof target visually match the shared support heights.
   for (const x of [88.3, 91.7])
     b.box(0xff7766, x, 12.07, 140, 0.16, 0.08, 20, true);
+  for (const c of CRYSTALS) {
+    b.add(cylinder, 0x29475c, c.x, 0.35, c.z, 3.5, 0.7, 3.5);
+    b.add(cylinder, c.color, c.x, 0.76, c.z, 3.1, 0.12, 3.1, true);
+    const gem = new T.Mesh(
+      new T.OctahedronGeometry(1.7),
+      material(c.color, true),
+    );
+    gem.position.set(c.x, 3.2, c.z);
+    scene.add(gem);
+    animated.push(gem);
+    const sign = label(
+      `${c.name.toUpperCase()} · ${c.cost} GEMS`,
+      "#ffffff",
+      9,
+    );
+    sign.position.set(c.x, 6.2, c.z);
+    scene.add(sign);
+  }
+  // Warm road-edge markers make the central circuit readable at night.
+  for (let i = -120; i <= 120; i += 20)
+    for (const side of [-1, 1]) {
+      b.box(0x86eaff, side * 120, 0.15, i, 0.25, 0.08, 3, true);
+      b.box(0x86eaff, i, 0.15, side * 120, 3, 0.08, 0.25, true);
+    }
+  // Signed circuit: an exploration route, not a timed multiplayer race.
+  for (const [x, z, w, d] of [
+    [0, -120, 245, 7],
+    [0, 120, 245, 7],
+    [-120, 0, 7, 245],
+    [120, 0, 7, 245],
+  ])
+    b.box(0x416278, x, 0.04, z, w, 0.06, d);
   b.finish(scene);
   const clouds = new T.InstancedMesh(sphere, material(0xf1f5ef), 78);
   const cloudTransform = new T.Object3D();
@@ -364,19 +398,40 @@ export function createWorld(scene: T.Scene) {
   scene.add(sun, sun.target);
   let night = 0,
     desired = 0;
+  let autoCycle = true;
   const skyDay = new T.Color(0x94d6ed),
-    skyNight = new T.Color(0x122443);
+    skyNight = new T.Color(0x122443),
+    skySunset = new T.Color(0xf4b38f),
+    ambientDay = new T.Color(0xd3f0ff),
+    ambientNight = new T.Color(0xa6bbff),
+    sunlight = new T.Color(0xffedce),
+    moonlight = new T.Color(0xb7d4ff);
   scene.background = skyDay.clone();
   scene.fog = new T.Fog(skyDay, 200, 1050);
   return {
     rings,
     sun,
+    setCycle(value: boolean) {
+      autoCycle = value;
+    },
     setNight(value: boolean) {
       desired = value ? 1 : 0;
     },
-    update(t: number, dt: number, x: number, z: number) {
+    update(
+      t: number,
+      dt: number,
+      x: number,
+      z: number,
+      serverTime = Date.now(),
+    ) {
+      const cycle = daylight(serverTime);
+      if (autoCycle) desired = cycle.night;
       night = T.MathUtils.lerp(night, desired, 1 - Math.exp(-dt * 2));
       (scene.background as T.Color).copy(skyDay).lerp(skyNight, night);
+      if (autoCycle)
+        (scene.background as T.Color).lerp(skySunset, cycle.sunset * 0.3);
+      hemi.color.copy(ambientDay).lerp(ambientNight, night);
+      sun.color.copy(sunlight).lerp(moonlight, night);
       (scene.fog as T.Fog).color.copy(scene.background as T.Color);
       hemi.intensity = 1.65 - night * 1.2;
       sun.intensity = 2.4 - night * 2.15;

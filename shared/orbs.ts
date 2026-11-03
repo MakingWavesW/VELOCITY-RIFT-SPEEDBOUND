@@ -9,7 +9,7 @@ export const ORB_TYPES = {
     steps: 2,
     xp: 2,
     gems: 0,
-    respawn: [6000, 10000],
+    respawn: [1000, 3000],
     radius: 0.65,
   },
   purple: {
@@ -20,7 +20,7 @@ export const ORB_TYPES = {
     steps: 5,
     xp: 5,
     gems: 0,
-    respawn: [10000, 15000],
+    respawn: [1000, 3000],
     radius: 0.8,
   },
   red: {
@@ -31,7 +31,7 @@ export const ORB_TYPES = {
     steps: 10,
     xp: 10,
     gems: 0,
-    respawn: [14000, 22000],
+    respawn: [1000, 3000],
     radius: 1,
   },
   gem: {
@@ -42,7 +42,7 @@ export const ORB_TYPES = {
     steps: 10,
     xp: 15,
     gems: 3,
-    respawn: [10000, 15000],
+    respawn: [1000, 3000],
     radius: 0.7,
   },
 } as const;
@@ -106,4 +106,4 @@ export type PickupEvent = OrbReward & {
   level: number;
   streak: number;
 };
-export const MAX_ORBS = 360;
+export const MAX_ORBS = 100;
