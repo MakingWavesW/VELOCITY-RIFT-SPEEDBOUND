@@ -1,5 +1,5 @@
 /** Implement this against an approved provider server API/webhook, never a browser callback. */
-export type RewardKind = "level" | "speed";
+export type RewardKind = "level" | "speed" | "xp";
 export type RewardTransaction = {
   id: string;
   profile: string;

@@ -118,6 +118,8 @@ export class GameAudio {
   effect(
     kind:
       | "pickup"
+      | "gem"
+      | "rarePickup"
       | "jump"
       | "landing"
       | "boost"
@@ -136,6 +138,8 @@ export class GameAudio {
     this.last.set(kind, now);
     const notes: Record<typeof kind, number[]> = {
       pickup: [880, 1320],
+      gem: [1046, 1568],
+      rarePickup: [659, 988, 1318],
       jump: [330, 500],
       landing: [110],
       boost: [220, 440, 880],

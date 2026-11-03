@@ -83,7 +83,7 @@ try {
     jump = await m.locator("#jump").boundingBox();
   assert.ok(stick.y + stick.height < xp.y, "joystick must not overlap XP");
   assert.ok(jump.y + jump.height < xp.y, "jump must not overlap XP");
-  await m.locator('[data-panel="settings"]').tap();
+  await m.locator('[data-panel="settings"].gear').tap();
   await m.locator("#comfort").check();
   await m.locator("#closePanel").tap();
   await m.screenshot({ path: "artifacts/production-mobile.png" });

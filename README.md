@@ -2,6 +2,10 @@
 
 An original multiplayer browser speed game by Vyrnora Studios. This branch extends `feature/smooth-movement-trails` with a cinematic startup, saved progression and the World 1 Main City update.
 
+## V5 release candidate
+
+V5 adds stalled-input recovery, focused beginner orb routes, saved UTC Playtime/Daily Rewards, gold claim badges, server-validated beginner/daily goals, Combo Rush and the solo Plaza Dash trial. The Boost Center displays all three original offer images; 2× XP is implemented behind the same disabled production verification boundary. See [V5 rules, evidence and limitations](docs/V5-RELEASE.md).
+
 ## Run locally
 
 Use **Node.js 24+** for SQLite guest profiles:
@@ -29,7 +33,7 @@ Open the Vite address in two browsers, enter names and join the shared Colyseus 
 - **96 shared randomized orb slots**, sampled across valid ground, grass, roads and reachable roof areas. Collected orbs relocate within **1–3 seconds**. A population recovery rule keeps the world supplied after burst collection.
 - **12 original pets and 3 crystals** costing **9 / 60 / 180 earned Gems**. Exact probabilities, owned inventory, equip/unequip, visible multiplayer followers and bounded Steps/Gems bonuses.
 - Saved guest progression, rebirths, Gems, pets and trail ownership. Guest access is tied to a private device token; clearing browser data loses access. SQLite requires a durable disk and one server process.
-- Optional, dismissible offers after each minute of active gameplay, deferred during movement, dialogs and other busy states. No ads autoplay. Production rewarded claims stay disabled until trusted Playgama server verification is available. Supported main-menu banners have an independent SDK path.
+- Manual Boost Center and optional, dismissible invitations when verified ads are available; invitations defer during movement, dialogs and trials. No ads autoplay. Production rewarded claims stay disabled until trusted Playgama server verification is available. Supported main-menu banners have an independent SDK path.
 
 Crystal purchases and future verified ad rewards use transaction IDs and atomic database writes to prevent duplicate grants. Costs, odds, eligibility and awards are server-controlled.
 
@@ -42,7 +46,7 @@ Crystal purchases and future verified ad rewards use transaction IDs and atomic 
 | Red | 10 / 10 | 50 / 50 |
 | Gold | 10 / 15, plus 3 Gems | unchanged |
 
-Energy orb rewards grow linearly with level, capped at 20× base. Trail bonuses apply once to eligible pickup Steps/Gems, then rebirth and pet multipliers apply. Pets never create Gems on non-Gem pickups. The HUD legend and pickup feedback reflect the final reward calculation. Streaks are visual only.
+Energy orb rewards grow linearly with level, capped at 20× base. Trail bonuses apply once to eligible pickup Steps/Gems, then rebirth and pet multipliers apply. Pets never create Gems on non-Gem pickups. The HUD legend and pickup feedback reflect the final reward calculation. Combo Rush adds one Gem at five quick pickups, at most once per 30 seconds and 20 times per UTC day.
 
 The Default Trail is free with neutral stats. Trail groups unlock at levels 2, 5, 7, 10, 15, 25, 35 and 40; unlocked ownership survives reconnects and rebirths. Original supplied trail bonus statistics remain unchanged. Rebirth eligibility starts at Level 50, increases by 25 per rebirth and gives +25% Steps/XP per rebirth while retaining Gems, pets and unlocked trails.
 
@@ -58,6 +62,10 @@ npm run build
 With backend and Vite running, run browser scripts sequentially:
 
 ```sh
+node --import tsx tests/v5-browser.mjs
+node tests/beginner-browser.mjs
+node tests/trial-browser.mjs
+node tests/movement-recovery-browser.mjs
 node tests/cinematic-browser.mjs
 node --import tsx tests/city-browser.mjs
 node tests/engagement-browser.mjs after
@@ -74,7 +82,7 @@ For a production smoke test, run `npx vite preview --host 0.0.0.0`, then `node t
 
 `npm run build` produces the static client in `dist/`. Deploy the Node backend separately. Set `VITE_SERVER_URL=wss://your-backend.example` before building. Serve over HTTPS; configure TLS, WebSocket upgrades and allowed origins at the reverse proxy. The backend uses `PORT` (default 2567), `/health`, and `RIFT_PROFILE_DB` (default `.data/profiles.sqlite`). Mount the database directory on durable storage. The `tsx` runner is a development dependency, so the documented server command requires a full `npm ci` install.
 
-Room capacity is configured at 20; that is not a measured 20-player load claim. Account recovery, multi-process persistence, competitive races/rankings, later worlds, production ad verification and real-device/load validation remain outstanding. Journey challenges are session-only and award no extra currency.
+Room capacity is configured at 20; that is not a measured 20-player load claim. Account recovery, multi-process persistence, opponent races/rankings, later worlds, production ad verification and real-device/load validation remain outstanding. V5 beginner and daily goals use saved server facts and genuine single-use Gem rewards; the earlier cosmetic journey code remains for the orb compass.
 
 ## Implementation reports
 

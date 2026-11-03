@@ -31,7 +31,8 @@ export function createCompanions(
     nearest: string | undefined,
     active: string | undefined,
     busy = false,
-    lastResult = "";
+    lastResult = "",
+    lastPet: string | undefined;
   const rarity = (s: string) =>
     s === "Legendary"
       ? "#ffd66c"
@@ -56,11 +57,14 @@ export function createCompanions(
         .join(
           "",
         )}</div><button id="openCrystal" ${busy || inventory.gems < c.cost ? "disabled" : ""}>${busy ? "Opening…" : `Open 1 · ${c.cost} Gems`}</button><p class="crystal-result" role="status"></p>`;
-      body.querySelector(".crystal-result")!.textContent = lastResult;
+      const reveal = body.querySelector(".crystal-result")!;
+      reveal.textContent = lastResult;
+      if (lastPet) reveal.insertAdjacentHTML("afterbegin", portrait(lastPet));
       body.querySelector<HTMLButtonElement>("#openCrystal")!.onclick = () => {
         if (busy) return;
         busy = true;
         lastResult = "";
+        lastPet = undefined;
         render();
         send("openCrystal", { crystal: active, id: crypto.randomUUID() });
       };
@@ -78,6 +82,7 @@ export function createCompanions(
   const open = (id?: string) => {
     active = id;
     lastResult = "";
+    lastPet = undefined;
     busy = false;
     render();
     if (!dialog.open) dialog.showModal();
@@ -115,13 +120,29 @@ export function createCompanions(
       if (changed && value.equipped) audio.effect("equip");
       if (dialog.open) render();
     },
-    result(v: { pet?: string; error?: string; repeated?: boolean }) {
+    result(v: {
+      pet?: string;
+      error?: string;
+      repeated?: boolean;
+      duplicate?: boolean;
+    }) {
       busy = false;
+      lastPet = v.pet && PET_BY_ID.has(v.pet) ? v.pet : undefined;
       lastResult =
         v.error ||
-        `${v.repeated ? "Already received" : "NEW COMPANION"} · ${PET_BY_ID.get(v.pet || "")?.name || "Companion"}`;
-      if (!v.error && !v.repeated) audio.effect("quest");
-      if (dialog.open) render();
+        `${v.repeated ? "Already received" : v.duplicate ? "DUPLICATE · Collection increased" : "NEW COMPANION"} · ${PET_BY_ID.get(v.pet || "")?.name || "Companion"}`;
+      if (!v.error && !v.repeated) {
+        audio.effect("quest");
+        dialog.classList.remove("hatch-reveal");
+        requestAnimationFrame(() => dialog.classList.add("hatch-reveal"));
+      }
+      if (dialog.open) {
+        render();
+        const result = dialog.querySelector<HTMLElement>(".crystal-result");
+        if (result && v.pet && !v.error) {
+          requestAnimationFrame(() => result.scrollIntoView({ block: "end" }));
+        }
+      }
     },
     update(p: Player | undefined) {
       nearest = undefined;

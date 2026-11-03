@@ -77,7 +77,8 @@ async function setup(name, delayed) {
   p.on("console", (m) => {
     if (m.type() === "error") console.log("browser error", m.text());
   });
-  await p.goto("http://localhost:5173"); await enterMenu(p);
+  await p.goto("http://localhost:5173");
+  await enterMenu(p);
   await p.locator("#name").fill(name);
   await p.locator("#join").click();
   try {
@@ -172,7 +173,13 @@ try {
   );
   await a.p.locator("#closePanel").click();
   console.log("Two browsers earned, equipped and replicated Red Trail");
-  latency = 100;
+  latency = Number(process.env.RIFT_TEST_LATENCY || 100);
+  if (process.env.RIFT_CPU_RATE) {
+    const cdp = await a.ctx.newCDPSession(a.p);
+    await cdp.send("Emulation.setCPUThrottlingRate", {
+      rate: Number(process.env.RIFT_CPU_RATE),
+    });
+  }
   await a.p.bringToFront();
   await a.p.locator("body > canvas").click({ position: { x: 400, y: 300 } });
   await keys(["w"]);

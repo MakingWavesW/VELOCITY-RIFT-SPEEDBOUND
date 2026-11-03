@@ -13,7 +13,8 @@ export class Rewards {
   prepare(profile: string, kind: RewardKind, p: Player, now = Date.now()) {
     if (
       !this.available ||
-      !["level", "speed"].includes(kind) ||
+      !["level", "speed", "xp"].includes(kind) ||
+      (kind === "xp" && (p.xpBoostUntil || 0) > now) ||
       (kind === "speed" && (p.boostUntil || 0) > now)
     )
       return undefined;

@@ -7,6 +7,8 @@ import type { Player } from "../shared/game.js";
 import { DEFAULT_TRAIL } from "../shared/trails.js";
 export type Progress = Pick<
   Player,
+  | "engagement"
+  | "xpBoostUntil"
   | "steps"
   | "gems"
   | "level"
@@ -24,8 +26,26 @@ export class Profiles {
     if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
     this.db = new DatabaseSync(path);
     this.db.exec(
-      "PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS profiles (id TEXT PRIMARY KEY, data TEXT NOT NULL); CREATE TABLE IF NOT EXISTS reward_transactions (id TEXT PRIMARY KEY, profile TEXT NOT NULL, kind TEXT NOT NULL, created INTEGER NOT NULL, expires INTEGER NOT NULL, claimed INTEGER); CREATE INDEX IF NOT EXISTS reward_profile ON reward_transactions(profile); CREATE TABLE IF NOT EXISTS crystal_transactions (profile TEXT NOT NULL, id TEXT NOT NULL, result TEXT NOT NULL, PRIMARY KEY(profile,id))",
+      "PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS engagement_grants (profile TEXT NOT NULL, key TEXT NOT NULL, PRIMARY KEY(profile,key)); CREATE TABLE IF NOT EXISTS profiles (id TEXT PRIMARY KEY, data TEXT NOT NULL); CREATE TABLE IF NOT EXISTS reward_transactions (id TEXT PRIMARY KEY, profile TEXT NOT NULL, kind TEXT NOT NULL, created INTEGER NOT NULL, expires INTEGER NOT NULL, claimed INTEGER); CREATE INDEX IF NOT EXISTS reward_profile ON reward_transactions(profile); CREATE TABLE IF NOT EXISTS crystal_transactions (profile TEXT NOT NULL, id TEXT NOT NULL, result TEXT NOT NULL, PRIMARY KEY(profile,id))",
     );
+  }
+  commitGrant(profile: string, key: string, data: Progress) {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const r = this.db
+        .prepare("INSERT OR IGNORE INTO engagement_grants VALUES (?,?)")
+        .run(profile, key);
+      if (Number(r.changes) !== 1) {
+        this.db.exec("ROLLBACK");
+        return false;
+      }
+      this.save(profile, data);
+      this.db.exec("COMMIT");
+      return true;
+    } catch (e) {
+      this.db.exec("ROLLBACK");
+      throw e;
+    }
   }
   reserveReward(profile: string, kind: RewardKind, now: number) {
     // One active request at a time; five minutes between successfully granted rewards.
@@ -155,6 +175,8 @@ export class Profiles {
 }
 export function progress(p: Player, owned: Set<string>): Progress {
   return {
+    engagement: p.engagement,
+    xpBoostUntil: p.xpBoostUntil || 0,
     steps: p.steps,
     gems: p.gems,
     level: p.level,

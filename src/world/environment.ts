@@ -349,6 +349,16 @@ export function createWorld(scene: T.Scene) {
     [120, 0, 7, 245],
   ])
     b.box(0x416278, x, 0.04, z, w, 0.06, d);
+  for (const [z, title] of [
+    [-50, "PLAZA DASH · CHECKPOINT"],
+    [-100, "PLAZA DASH · TURN BACK"],
+  ] as const) {
+    for (const x of [-7, 7]) b.box(0x9be9f5, x, 2, z, 0.3, 4, 0.3, true);
+    b.box(0xffdf89, 0, 0.16, z, 14, 0.08, 1, true);
+    const gate = label(title, "#ffdf89", 12);
+    gate.position.set(0, 6, z);
+    scene.add(gate);
+  }
   b.finish(scene);
   const clouds = new T.InstancedMesh(sphere, material(0xf1f5ef), 78);
   const cloudTransform = new T.Object3D();

@@ -167,9 +167,12 @@ const zones: Record<
   string,
   { x: number; z: number; w: number; d: number; y: number }[]
 > = {
-  starter: [{ x: 0, z: 0, w: 66, d: 66, y: 0 }],
-  north: [{ x: 0, z: -205, w: 130, d: 280, y: 0 }],
-  south: [{ x: 0, z: 180, w: 150, d: 280, y: 0 }],
+  starter: [
+    { x: 0, z: -28, w: 22, d: 50, y: 0 },
+    { x: 0, z: 25, w: 40, d: 25, y: 0 },
+  ],
+  north: [{ x: 0, z: -110, w: 16, d: 110, y: 0 }],
+  south: [{ x: 0, z: 100, w: 20, d: 130, y: 0 }],
   downtown: [{ x: -220, z: -200, w: 280, d: 250, y: 0 }],
   garden: [{ x: -230, z: 190, w: 230, d: 240, y: 0 }],
   speedway: [{ x: 230, z: -190, w: 270, d: 280, y: 0 }],
@@ -182,11 +185,12 @@ const zones: Record<
   hidden: [{ x: -330, z: 270, w: 80, d: 100, y: 0 }],
   coast: [{ x: 0, z: 395, w: 300, d: 55, y: 0 }],
 };
-const populations = [24, 10, 8, 10, 10, 10, 8, 6, 10];
+const populations = [28, 16, 12, 8, 8, 8, 8, 4, 4];
 orbRoutes.forEach((r, i) => {
   r.count = populations[i];
   r.zones = zones[r.id];
-  r.weights.gem = r.id === "starter" ? 24 : 16;
+  r.weights.gem = ["starter", "north", "south"].includes(r.id) ? 8 : 16;
+  if (r.id === "starter") r.weights = { blue: 62, purple: 18, red: 6, gem: 8 };
 });
 // Decorative ponds are exclusion volumes too, not just the ocean boundary.
 const ponds = [

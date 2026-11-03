@@ -57,3 +57,5 @@ Pets and crystals add a concrete currency sink, visible reward and persistent co
 After-run software-rendering samples ranged from 97 to 188 ms, with 138–313 draw calls. Draw calls increased in this sampled route; real-device performance is not established. Orb rendering remains instanced and pets add at most three draw calls, but the existing scenery/material batches remain a profiling target.
 
 The final regression suite passes 45/45 tests. The production bundle builds successfully (about 721 kB JavaScript, 205 kB gzip, with Vite’s large-chunk advisory). Browser checks cover desktop/mobile crystal UI, actual purchase and equipment, night settings, touch movement and a genuine minute-long disabled ad offer.
+
+The [V5 release report](V5-RELEASE.md) supersedes earlier offer timing, reward UI, beginner spawn balance and cosmetic-only quest descriptions. Production ad verification remains disabled.

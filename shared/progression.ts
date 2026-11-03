@@ -14,11 +14,16 @@ export function rebirth(p: Player) {
 // Only a trusted server verification adapter may call this function. Never a room message.
 export function verifiedReward(
   p: Player,
-  kind: "level" | "speed",
+  kind: "level" | "speed" | "xp",
   now: number,
 ) {
   if (kind === "level") {
     p.level++;
+    return true;
+  }
+  if (kind === "xp") {
+    if ((p.xpBoostUntil || 0) > now) return false;
+    p.xpBoostUntil = now + 180000;
     return true;
   }
   if ((p.boostUntil || 0) > now) return false;
@@ -26,6 +31,10 @@ export function verifiedReward(
   p.speedMultiplier = 2;
   return true;
 }
+export const xpMultiplier = (
+  p: Pick<Player, "xpBoostUntil">,
+  now = Date.now(),
+) => ((p.xpBoostUntil || 0) > now ? 2 : 1);
 export function expireBoost(p: Player, now: number) {
   p.speedMultiplier = (p.boostUntil || 0) > now ? 2 : 1;
 }

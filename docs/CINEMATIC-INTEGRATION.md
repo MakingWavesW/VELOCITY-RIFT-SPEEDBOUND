@@ -52,3 +52,5 @@ With backend and Vite running:
 Run timing-sensitive server tests separately from software-rendered browser tests. Software rendering and mobile emulation do not demonstrate real-device performance. The level-popup fixture explicitly tests presentation without granting server progress. Browser tests enter the real intro through `tests/menu-helper.mjs`.
 
 The later Main City update is described in [MAIN-CITY.md](MAIN-CITY.md). It supersedes this report's orb count and adds pets, crystal purchases and a shared day/night cycle. All reward-verification restrictions still apply.
+
+The [V5 release report](V5-RELEASE.md) supersedes earlier offer timing, reward UI, beginner spawn balance and cosmetic-only quest descriptions. Production ad verification remains disabled.

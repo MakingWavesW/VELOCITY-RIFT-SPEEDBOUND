@@ -178,7 +178,7 @@ export function createHud() {
     }
     if (name === "help")
       $("panelBody").innerHTML =
-        `<div class="help-grid"><article><i>ϟ</i><h3>Keep moving</h3><p>WASD or arrow keys to run. Space to jump. On touchscreens, use the joystick and jump button.</p></article><article><i>◆</i><h3>Chase the glow</h3><p>Blue → Purple → Red: higher tiers give more Steps and XP. At level 1: 2 / 5 / 10. At level 10: 10 / 25 / 50. Gold retains Gems. 96 shared orbs scatter across Main City and replenish at new valid locations in 1–3 seconds. Collect gold orbs for Gems and visit a crystal for a companion.</p></article><article><i>◎</i><h3>Catch some air</h3><p>Glowing blue launch pads lift you toward rings. Pass through a ring for 20 XP; each has a 20-second personal cooldown.</p></article><article><i>⌖</i><h3>Explore together</h3><p>Drag to turn the camera, scroll to zoom. Use M for the island map, Escape to close menus. Say hello to real players.</p></article></div><div class="orb-routes">${orbRoutes.map((r) => `<p><b>${r.name}</b> · ${r.hint}</p>`).join("")}</div><p class="hint">A pickup streak is visual only; it does not multiply rewards. Trails unlock free at level milestones. Gem bonuses apply only to Gem-paying pickups; Steps bonuses apply only to orb pickups. Level, Gems, Steps, rebirths and unlocked trails are saved for this device. Clearing browser data loses access to the guest runner. Journey challenges restart when reconnecting. Crystals and pets are available beside spawn and around the city. Competitive races are not yet available.</p>`;
+        `<div class="help-grid"><article><i>ϟ</i><h3>Keep moving</h3><p>WASD or arrow keys to run. Space to jump. On touchscreens, use the joystick and jump button.</p></article><article><i>◆</i><h3>Chase the glow</h3><p>Blue → Purple → Red: higher tiers give more Steps and XP. At level 1: 2 / 5 / 10. At level 10: 10 / 25 / 50. Gold retains Gems. 96 shared orbs scatter across Main City and replenish at new valid locations in 1–3 seconds. Collect gold orbs for Gems and visit a crystal for a companion.</p></article><article><i>◎</i><h3>Catch some air</h3><p>Glowing blue launch pads lift you toward rings. Pass through a ring for 20 XP; each has a 20-second personal cooldown.</p></article><article><i>⌖</i><h3>Explore together</h3><p>Drag to turn the camera, scroll to zoom. Use M for the island map, Escape to close menus. Say hello to real players.</p></article></div><div class="orb-routes">${orbRoutes.map((r) => `<p><b>${r.name}</b> · ${r.hint}</p>`).join("")}</div><p class="hint">Combo Rush grants 1 Gem after five quick pickups, with a 30-second cooldown and 20-Gem daily cap. Trails unlock free at level milestones. Gem bonuses apply only to Gem-paying pickups; Steps bonuses apply only to orb pickups. Level, Gems, Steps, rebirths and unlocked trails are saved for this device. Clearing browser data loses access to the guest runner. Journey challenges restart when reconnecting. Crystals and pets are available beside spawn and around the city. Competitive races are not yet available.</p>`;
     if (!panel.open) panel.showModal();
   }
   for (const button of document.querySelectorAll<HTMLElement>("[data-panel]")) {
@@ -200,8 +200,7 @@ export function createHud() {
   };
   const offers = document.createElement("div");
   offers.id = "rewardOffers";
-  offers.innerHTML =
-    '<button data-reward="level" aria-label="Watch an ad for one level"><img src="/media/reward-level.png" alt="+1 Level"></button><button data-reward="speed" aria-label="Watch an ad for twice the speed for two minutes"><img src="/media/reward-speed.png" alt="2× Speed for 2 minutes"></button><small>Ad rewards currently unavailable</small><span id="boostCountdown"></span>';
+  offers.innerHTML = '<span id="boostCountdown"></span>';
   $("hud").append(offers);
   for (const b of offers.querySelectorAll<HTMLButtonElement>("button"))
     b.onclick = () => onReward(b.dataset.reward!);
@@ -235,7 +234,9 @@ export function createHud() {
     $("pickupFeed").append(el);
     setTimeout(() => el.remove(), 2000);
     $("streak").textContent =
-      event.streak > 1 ? `${event.streak} ORB STREAK · KEEP IT FLOWING` : "";
+      event.streak > 1
+        ? `${event.streak} ORB RUSH · ${"●".repeat(Math.min(5, event.streak))}${"○".repeat(Math.max(0, 5 - event.streak))}`
+        : "";
     clearTimeout(streakTimeout);
     streakTimeout = setTimeout(
       () => ($("streak").textContent = ""),

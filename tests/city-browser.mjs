@@ -86,10 +86,15 @@ try {
   await p.locator("#closePanel").click();
   // Wait a genuine minute of gameplay. The offer is deferred while a dialog is open.
   await p.waitForTimeout(61000);
-  await p.locator("#timedRewardOffer").waitFor({ state: "visible" });
-  assert.equal(await p.locator(".watch-offer").isDisabled(), true);
-  await p.locator(".dismiss-offer").click();
-  assert.equal(await p.locator("#timedRewardOffer").count(), 0);
+  assert.equal(
+    await p.locator("#timedRewardOffer").count(),
+    0,
+    "unavailable ads must not repeatedly invite the runner",
+  );
+  await p.locator("#boostCenterButton").click();
+  assert.equal(await p.locator("[data-boost]:disabled").count(), 3);
+  await p.locator(".no-thanks").click();
+  await p.locator("#boostCenter").waitFor({ state: "hidden" });
   const mobile = await browser.newContext({
     viewport: { width: 390, height: 844 },
     isMobile: true,

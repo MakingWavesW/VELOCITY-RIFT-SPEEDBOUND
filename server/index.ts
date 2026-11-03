@@ -4,6 +4,9 @@ import {
   choosePet,
   PET_BY_ID,
 } from "../shared/pets.js";
+import { EngagementService } from "./engagement.js";
+import { TRIAL } from "../shared/engagement.js";
+import { xpMultiplier } from "../shared/progression.js";
 import { randomInt } from "node:crypto";
 import { Rewards } from "./rewards.js";
 import { rewardVerifier } from "./rewardVerifier.js";
@@ -38,6 +41,7 @@ import {
   type Player,
   type Input,
 } from "../shared/game.js";
+const engagement = new EngagementService(profiles);
 const rewards = new Rewards(profiles, rewardVerifier);
 export class Plaza extends Room {
   rewardChecks = new Set<string>();
@@ -54,6 +58,7 @@ export class Plaza extends Room {
   maxClients = 20;
   profiles = new Map<string, { id: string; token: string }>();
   nextSave = 0;
+  nextEngagement = 0;
   savePlayer(id: string) {
     const profile = this.profiles.get(id),
       p = this.players[id],
@@ -82,6 +87,59 @@ export class Plaza extends Room {
     client.send("trailInventory", inventory);
   }
   onCreate() {
+    this.onMessage("presence", (client, v) => {
+      engagement.heartbeat(client.sessionId, v === true);
+      if (v !== true) {
+        const queue = this.inputs.get(client.sessionId),
+          p = this.players[client.sessionId];
+        // Acknowledge discarded queued intentions without simulating their movement.
+        if (p && queue?.length) p.seq = Math.max(p.seq, queue.at(-1)!.seq);
+        this.inputs.delete(client.sessionId);
+      }
+    });
+    this.onMessage("engagement", (client) => {
+      const p = this.players[client.sessionId];
+      if (p) client.send("engagement", engagement.visible(p));
+    });
+    this.onMessage("claimEngagement", (client, v) => {
+      const p = this.players[client.sessionId],
+        profile = this.profiles.get(client.sessionId);
+      if (!p || !profile) return;
+      try {
+        const ok = engagement.claim(
+          p,
+          profile.id,
+          this.ownedTrails.get(p.id)!,
+          String(v?.kind),
+          String(v?.id),
+        );
+        client.send("engagementResult", {
+          ok,
+          message: ok
+            ? "Reward claimed and saved!"
+            : "Reward not ready or already claimed.",
+        });
+      } catch {
+        client.send("engagementResult", {
+          ok: false,
+          message: "Save unavailable. Please retry.",
+        });
+      }
+      client.send("engagement", engagement.visible(p));
+    });
+    this.onMessage("startTrial", (client) => {
+      const p = this.players[client.sessionId];
+      if (p) {
+        const ok = engagement.start(p);
+        client.send("engagementResult", {
+          ok,
+          message: ok
+            ? "Plaza Dash starts in 3 seconds. Follow the checkpoint guide!"
+            : "Return to spawn to start the solo time trial.",
+        });
+        client.send("engagement", engagement.visible(p));
+      }
+    });
     this.onMessage("petInventory", (client) => this.petInventory(client));
     this.onMessage("equipPet", (client, id) => {
       const p = this.players[client.sessionId];
@@ -92,6 +150,7 @@ export class Plaza extends Room {
       )
         return;
       p.equippedPetId = id || undefined;
+      if (id) engagement.record(p, "equip");
       this.savePlayer(p.id);
       this.petInventory(client);
     });
@@ -128,7 +187,11 @@ export class Plaza extends Room {
         gems: p.gems - c.cost,
         pets: { ...p.pets, [pet]: (p.pets?.[pet] || 0) + 1 },
         equippedPetId: p.equippedPetId || pet,
+        engagement: structuredClone(engagement.state(p)),
       };
+      engagement.record(next, "hatch");
+      engagement.record(next, "equip");
+      const duplicate = !!p.pets?.[pet];
       try {
         if (
           !profiles.commitCrystal(
@@ -144,7 +207,7 @@ export class Plaza extends Room {
       }
       Object.assign(p, next);
       this.petInventory(client);
-      client.send("crystalResult", { pet, crystal: c.id });
+      client.send("crystalResult", { pet, crystal: c.id, duplicate });
     });
 
     this.onMessage("profile", (client) => {
@@ -202,7 +265,9 @@ export class Plaza extends Room {
       const p = this.players[client.sessionId],
         profile = this.profiles.get(client.sessionId);
       const tx =
-        p && profile && (v?.kind === "level" || v?.kind === "speed")
+        p &&
+        profile &&
+        (v?.kind === "level" || v?.kind === "speed" || v?.kind === "xp")
           ? rewards.prepare(profile.id, v.kind, p)
           : undefined;
       client.send(
@@ -276,6 +341,8 @@ export class Plaza extends Room {
       if (
         !p ||
         !validInput(v) ||
+        (!engagement.acceptsMovement(p.id) &&
+          (v.x !== 0 || v.z !== 0 || v.jump)) ||
         v.seq <= (this.inputs.get(p.id)?.at(-1)?.seq ?? p.seq) ||
         v.seq > p.seq + 128 ||
         (this.inputs.get(p.id)?.length || 0) >= 12
@@ -342,6 +409,7 @@ export class Plaza extends Room {
     this.streaks.delete(client.sessionId);
     this.emotes.delete(client.sessionId);
     this.crystalTimes.delete(client.sessionId);
+    engagement.cleanup(client.sessionId);
     delete this.players[client.sessionId];
     this.inputs.delete(client.sessionId);
   }
@@ -353,7 +421,37 @@ export class Plaza extends Room {
       const i = this.inputs.get(p.id)?.shift();
       const old = Math.floor(p.steps / 10);
       const previous = { x: p.x, y: p.y, z: p.z };
-      p.steps += move(p, i || { seq: p.seq, x: 0, z: 0, jump: false });
+      const distance = move(p, i || { seq: p.seq, x: 0, z: 0, jump: false });
+      p.steps += distance;
+      const finished = engagement.tick(p, distance, !!i, now);
+      if (finished) {
+        const s = engagement.state(p, now),
+          profile = this.profiles.get(p.id)!;
+        if (now - (s.trialRewardAt || 0) >= TRIAL.cooldown) {
+          const next = {
+            ...p,
+            engagement: { ...s, trialRewardAt: now },
+            gems: p.gems + TRIAL.reward,
+          };
+          try {
+            if (
+              profiles.commitGrant(
+                profile.id,
+                `trial:${s.trialRewardAt || 0}`,
+                progress(next, this.ownedTrails.get(p.id)!),
+              )
+            )
+              Object.assign(p, next);
+          } catch {}
+        }
+        this.clients
+          .find((c) => c.sessionId === p.id)
+          ?.send("engagementResult", {
+            ok: true,
+            message: `Plaza Dash finished in ${(finished / 1000).toFixed(2)}s. Personal best saved.`,
+          });
+        this.savePlayer(p.id);
+      }
       if (Math.floor(p.steps / 10) > old)
         reward(p, 2 * rebirthMultiplier(p.rebirths || 0));
       for (const h of hoops) {
@@ -363,11 +461,16 @@ export class Plaza extends Room {
           (this.hoopCooldowns.get(key) || 0) < now
         ) {
           this.hoopCooldowns.set(key, now + 20000);
-          reward(p, h.xp * rebirthMultiplier(p.rebirths || 0));
+          engagement.record(p, "hoops");
+          reward(
+            p,
+            h.xp * rebirthMultiplier(p.rebirths || 0) * xpMultiplier(p, now),
+          );
           this.broadcast("hoop", {
             id: h.id,
             player: p.id,
-            xp: h.xp * rebirthMultiplier(p.rebirths || 0),
+            xp:
+              h.xp * rebirthMultiplier(p.rebirths || 0) * xpMultiplier(p, now),
           });
         }
       }
@@ -381,6 +484,9 @@ export class Plaza extends Room {
             claimed.tier,
             resolveOwnedTrail(p.equippedTrailId, this.ownedTrails.get(p.id)!),
           );
+        engagement.record(p, "orbs");
+        engagement.record(p, claimed.tier);
+        if (gains.gems) engagement.record(p, "gems", gains.gems);
         p.steps += gains.steps;
         p.gems += gains.gems;
         reward(p, gains.xp);
@@ -390,6 +496,39 @@ export class Plaza extends Room {
             ? old.count + 1
             : 1;
         this.streaks.set(p.id, { last: now, count: streak });
+        const activity = engagement.state(p, now);
+        if (
+          streak >= 5 &&
+          now - (activity.comboAt || 0) >= 30000 &&
+          activity.comboRewards < 20
+        ) {
+          const next = {
+            ...p,
+            gems: p.gems + 1,
+            engagement: {
+              ...activity,
+              comboAt: now,
+              comboRewards: activity.comboRewards + 1,
+            },
+          };
+          try {
+            if (
+              profiles.commitGrant(
+                this.profiles.get(p.id)!.id,
+                `combo:${activity.day}:${activity.comboRewards}`,
+                progress(next, this.ownedTrails.get(p.id)!),
+              )
+            ) {
+              Object.assign(p, next);
+              this.clients
+                .find((c) => c.sessionId === p.id)
+                ?.send("engagementResult", {
+                  ok: true,
+                  message: "COMBO RUSH · +1 Gem!",
+                });
+            }
+          } catch {}
+        }
         const event: PickupEvent = {
           orb: claimed,
           player: p.id,
@@ -417,10 +556,21 @@ export class Plaza extends Room {
       for (const id of Object.keys(this.players)) this.savePlayer(id);
       this.nextSave = now + 5000;
     }
+    if (now >= this.nextEngagement) {
+      for (const c of this.clients) {
+        const p = this.players[c.sessionId];
+        if (p) c.send("engagement", engagement.visible(p, now));
+      }
+      this.nextEngagement = now + 1000;
+    }
     const patch = this.orbManager.flush();
     if (patch) this.broadcast("orbPatch", patch);
     this.broadcast("snapshot", {
-      players: this.players,
+      players: Object.fromEntries(
+        Object.entries(this.players).map(
+          ([id, { engagement: privateProgress, ...p }]) => [id, p],
+        ),
+      ),
       orbRevision: this.orbManager.revision,
       time: now,
     });

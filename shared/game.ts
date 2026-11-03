@@ -1,7 +1,10 @@
 import { WORLD_HALF, blocked, groundAt, ramps } from "./world.js";
 export const DT = 1 / 25;
 export type Input = { seq: number; x: number; z: number; jump: boolean };
+import type { Engagement } from "./engagement.js";
 export type Player = {
+  engagement?: Engagement;
+  xpBoostUntil?: number;
   id: string;
   name: string;
   x: number;

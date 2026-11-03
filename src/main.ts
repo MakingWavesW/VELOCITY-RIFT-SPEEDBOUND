@@ -1,3 +1,5 @@
+import { createRewardHub } from "./ui/rewardHub";
+import { installDialogMotion } from "./ui/motion";
 import { createCompanions } from "./ui/companions";
 import { createPetRenderer } from "./world/pets";
 import { createTimedOffer } from "./ui/timedOffer";
@@ -36,7 +38,13 @@ import { createHud, $ } from "./ui/hud";
 import { createJourneyUI } from "./ui/journey";
 import "./style.css";
 
+installDialogMotion();
 const hud = createHud();
+const rewardHub = createRewardHub(
+  (type, value) => room?.send(type, value),
+  (text) => hud.toast(text),
+);
+rewardHub.show(false);
 const companions = createCompanions((type, value) => {
   if (connected) room?.send(type, value);
   else hud.toast("Join a world first.");
@@ -59,6 +67,7 @@ const petRenderer = createPetRenderer(scene);
 const world = createWorld(scene),
   effects = createEffects(scene);
 function applySettings() {
+  document.body.classList.toggle("reduced-motion", hud.settings.comfort);
   world.setNight(hud.settings.night);
   world.setCycle(hud.settings.dayCycle);
   renderer.setPixelRatio(
@@ -94,8 +103,9 @@ let predictionError = 0,
   hardCorrections = 0,
   rtt = 0;
 let lastOrbSync = 0;
-let offeredReward: "level" | "speed" | undefined;
+let offeredReward: "level" | "speed" | "xp" | undefined;
 let rewardBusy = false;
+let lastPresence: boolean | undefined;
 function requestOrbSync() {
   if (room && performance.now() - lastOrbSync > 1000) {
     lastOrbSync = performance.now();
@@ -239,6 +249,10 @@ $("join").onclick = async () => {
     room.onMessage("petInventory", (v) => companions.inventory(v));
     room.onMessage("crystalResult", (v) => companions.result(v));
     room.send("petInventory");
+    room.onMessage("engagement", (v) => rewardHub.update(v));
+    room.onMessage("engagementResult", (v) => rewardHub.result(v));
+    room.send("engagement");
+    room.send("rewardOffer");
     room.onMessage("progression", (v: { ok: boolean; message: string }) => {
       hud.toast(v.message);
       if (v.ok) {
@@ -251,6 +265,8 @@ $("join").onclick = async () => {
       async (v: { available: boolean; message: string }) => {
         timedOffer.configure(v.available && platform.rewardsSupported);
         const kind = offeredReward;
+        if (!kind) return;
+        offeredReward = undefined;
         if (!v.available || !platform.rewardsSupported || !kind) {
           rewardBusy = false;
           hud.toast(v.message);
@@ -263,7 +279,7 @@ $("join").onclick = async () => {
     );
     room.onMessage(
       "rewardTransaction",
-      (v: { id?: string; kind?: "level" | "speed"; error?: string }) => {
+      (v: { id?: string; kind?: "level" | "speed" | "xp"; error?: string }) => {
         if (!v.id || !v.kind) {
           rewardBusy = false;
           hud.toast(v.error || "Reward unavailable.");
@@ -272,17 +288,15 @@ $("join").onclick = async () => {
         const transaction = v.id,
           activeRoom = room;
         clearInput();
+        room?.send("presence", false);
         setMediaState("AD_PLAYBACK");
         // Placement IDs are presentation routing, not verification proof.
-        const shown = platform.showRewarded(
-          v.kind === "level" ? "rift_level" : "rift_speed",
-          () => {
-            setMediaState(connected ? "GAMEPLAY" : "MAIN_MENU");
-            rewardBusy = false;
-            if (connected && room === activeRoom)
-              room?.send("rewardCheck", { id: transaction });
-          },
-        );
+        const shown = platform.showRewarded(`rift_${v.kind}`, () => {
+          setMediaState(connected ? "GAMEPLAY" : "MAIN_MENU");
+          rewardBusy = false;
+          if (connected && room === activeRoom)
+            room?.send("rewardCheck", { id: transaction });
+        });
         if (!shown) {
           rewardBusy = false;
           setMediaState("GAMEPLAY");
@@ -296,6 +310,7 @@ $("join").onclick = async () => {
     celebration.reset();
     confirmedVertical = undefined;
     setMediaState("GAMEPLAY");
+    lastPresence = undefined;
     seq = 0;
     pending = [];
     local = undefined;
@@ -310,6 +325,7 @@ $("join").onclick = async () => {
     connected = true;
     journeyUI.reset();
     journeyUI.show();
+    rewardHub.show(true);
     clearInput();
     $("entry").style.display = "none";
     renderer.domElement.tabIndex = 0;
@@ -396,6 +412,7 @@ $("join").onclick = async () => {
     room.onMessage("trailInventory", (value: TrailInventory) => {
       hud.inventory(value);
       if (value.message === "Trail equipped.") audio.effect("equip");
+      if (value.message?.includes("trails unlocked")) audio.effect("level");
       journeyUI.inventory(value);
     });
     room.send("trailInventory");
@@ -418,7 +435,13 @@ $("join").onclick = async () => {
         );
       if (event.player === room?.sessionId) {
         hud.pickup(event);
-        audio.effect("pickup");
+        audio.effect(
+          event.orb.tier === "gem"
+            ? "gem"
+            : event.orb.tier === "red"
+              ? "rarePickup"
+              : "pickup",
+        );
         journeyUI.pickup(event);
       }
     });
@@ -440,6 +463,7 @@ $("join").onclick = async () => {
       connected = false;
       rewardBusy = false;
       celebration.reset();
+      rewardHub.show(false);
       companions.reset();
       timedOffer.reset();
       setMediaState("MAIN_MENU");
@@ -478,8 +502,19 @@ $("join").onclick = async () => {
 // unacknowledged window; a stalled connection cannot build up unlimited predictions.
 setInterval(() => {
   if (!connected || !local || !room) return;
-  if (document.querySelector("dialog[open]") || inputPaused()) clearInput();
-  if (pending.length >= NETWORK.maxPending) return;
+  const active = !document.querySelector("dialog[open]") && !inputPaused();
+  if (active !== lastPresence) {
+    lastPresence = active;
+    room.send("presence", active);
+  }
+  if (!active) clearInput();
+  if (pending.length >= NETWORK.maxPending) {
+    // Retry the oldest unacknowledged command. Duplicates are rejected by the server;
+    // a previously rejected command can now enter its drained queue. No extra prediction.
+    if (!active) pending[0] = { ...pending[0], x: 0, z: 0, jump: false };
+    room.send("input", pending[0]);
+    return;
+  }
   const x =
     Number(keys.has("d") || keys.has("arrowright")) -
     Number(keys.has("a") || keys.has("arrowleft")) +
@@ -505,7 +540,13 @@ setInterval(() => {
   lastPrediction = performance.now();
 }, DT * 1000);
 setInterval(() => {
-  if (connected) room?.send("ping", performance.now());
+  if (connected) {
+    room?.send("ping", performance.now());
+    room?.send(
+      "presence",
+      !inputPaused() && !document.querySelector("dialog[open]"),
+    );
+  }
 }, 1500);
 const clock = new T.Clock();
 let lastFrame = 0,
@@ -592,7 +633,9 @@ function frame() {
     elapsed * 1000,
     connected && !inputPaused(),
     !!local && !local.moving && local.verticalVelocity === 0,
-    !!document.querySelector("dialog[open]") || companions.busy,
+    !!document.querySelector("dialog[open]") ||
+      companions.busy ||
+      rewardHub.trialActive,
   );
   petRenderer.update(
     [...avatars]
@@ -617,7 +660,20 @@ function frame() {
       ((local?.boostUntil || 0) - (performance.now() + serverOffset)) / 1000,
     ),
   );
-  $("boostCountdown").textContent = boost ? `2× SPEED · ${boost}s` : "";
+  const xpSeconds = Math.max(
+    0,
+    Math.ceil(((local?.xpBoostUntil || 0) - serverTime) / 1000),
+  );
+  $("boostCountdown").textContent = [
+    boost ? `2× SPEED · ${boost}s` : "",
+    xpSeconds
+      ? `2× XP ACTIVE · ${Math.floor(xpSeconds / 60)
+          .toString()
+          .padStart(2, "0")}:${(xpSeconds % 60).toString().padStart(2, "0")}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
   const visibleLocal = room
     ? avatars.get(room.sessionId)?.g.position
     : undefined;
@@ -676,7 +732,7 @@ hud.onRebirth = (expected) => {
 };
 hud.onReward = (kind) => {
   if (rewardBusy) return;
-  if (connected && (kind === "level" || kind === "speed")) {
+  if (connected && (kind === "level" || kind === "speed" || kind === "xp")) {
     offeredReward = kind;
     rewardBusy = true;
     room?.send("rewardOffer", { kind });
