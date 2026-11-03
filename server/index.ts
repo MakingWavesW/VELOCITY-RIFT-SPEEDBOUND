@@ -1,3 +1,14 @@
+import { Rewards } from "./rewards.js";
+import { rewardVerifier } from "./rewardVerifier.js";
+import { Profiles, progress } from "./profiles.js";
+import {
+  rebirth,
+  rebirthMultiplier,
+  expireBoost,
+} from "../shared/progression.js";
+const profiles = new Profiles(
+  process.env.RIFT_PROFILE_DB || ".data/profiles.sqlite",
+);
 import {
   DEFAULT_TRAIL,
   eligibleTrails,
@@ -20,8 +31,18 @@ import {
   type Player,
   type Input,
 } from "../shared/game.js";
+const rewards = new Rewards(profiles, rewardVerifier);
 export class Plaza extends Room {
+  rewardChecks = new Set<string>();
   maxClients = 20;
+  profiles = new Map<string, { id: string; token: string }>();
+  nextSave = 0;
+  savePlayer(id: string) {
+    const profile = this.profiles.get(id),
+      p = this.players[id],
+      owned = this.ownedTrails.get(id);
+    if (profile && p && owned) profiles.save(profile.id, progress(p, owned));
+  }
   players: Record<string, Player> = {};
   inputs = new Map<string, Input[]>();
   ownedTrails = new Map<string, Set<string>>();
@@ -38,12 +59,109 @@ export class Plaza extends Room {
       owned: [...(this.ownedTrails.get(p.id) || [])],
       equipped: p.equippedTrailId || DEFAULT_TRAIL,
       level: p.level,
-      sessionOnly: true,
+      sessionOnly: false,
       message,
     };
     client.send("trailInventory", inventory);
   }
   onCreate() {
+    this.onMessage("profile", (client) => {
+      const p = this.profiles.get(client.sessionId);
+      if (p) client.send("profile", { token: p.token });
+    });
+    this.onMessage("rebirth", (client, v) => {
+      const p = this.players[client.sessionId];
+      const candidate = p ? { ...p } : undefined;
+      // The expected count makes a repeated/stale confirmation ineligible.
+      if (
+        !p ||
+        !v ||
+        !Number.isSafeInteger(v.expected) ||
+        v.expected !== (p.rebirths || 0) ||
+        !candidate ||
+        !rebirth(candidate)
+      ) {
+        client.send("progression", {
+          ok: false,
+          message: "Rebirth is not available at your current level.",
+        });
+        return;
+      }
+      try {
+        profiles.save(
+          this.profiles.get(p.id)!.id,
+          progress(candidate, this.ownedTrails.get(p.id)!),
+        );
+      } catch {
+        client.send("progression", {
+          ok: false,
+          message:
+            "Your save is unavailable. Rebirth was not applied; try again later.",
+        });
+        return;
+      }
+      Object.assign(p, candidate);
+      this.inputs.delete(p.id);
+      this.inventory(client);
+      client.send("progression", {
+        ok: true,
+        message: "REBORN! Your gems and unlocked trails are preserved.",
+      });
+    });
+    this.onMessage("rewardOffer", (client) =>
+      client.send("rewardOffer", {
+        available: rewards.available,
+        message: rewards.available
+          ? "Confirm the offer before watching an ad."
+          : "Rewarded offers are not available yet.",
+      }),
+    );
+    this.onMessage("rewardPrepare", (client, v) => {
+      const p = this.players[client.sessionId],
+        profile = this.profiles.get(client.sessionId);
+      const tx =
+        p && profile && (v?.kind === "level" || v?.kind === "speed")
+          ? rewards.prepare(profile.id, v.kind, p)
+          : undefined;
+      client.send(
+        "rewardTransaction",
+        tx
+          ? { id: tx.id, kind: tx.kind, expires: tx.expires }
+          : { error: "Reward unavailable or on cooldown." },
+      );
+    });
+    this.onMessage("rewardCheck", async (client, v) => {
+      const profile = this.profiles.get(client.sessionId);
+      if (
+        !profile ||
+        typeof v?.id !== "string" ||
+        v.id.length > 64 ||
+        this.rewardChecks.has(profile.id)
+      )
+        return;
+      this.rewardChecks.add(profile.id);
+      try {
+        const ok = await rewards.settle(profile.id, v.id, () => {
+          const player = this.players[client.sessionId],
+            owned = this.ownedTrails.get(client.sessionId);
+          return player && owned ? { player, owned } : undefined;
+        });
+        client.send("rewardResult", {
+          ok,
+          message: ok
+            ? "Reward verified and saved."
+            : "Reward not verified. No progress changed.",
+        });
+      } catch {
+        client.send("rewardResult", {
+          ok: false,
+          message: "Reward verification unavailable. Try again later.",
+        });
+      } finally {
+        this.rewardChecks.delete(profile.id);
+      }
+    });
+
     this.onMessage("trailInventory", (client) => this.inventory(client));
     this.onMessage("equipTrail", (client, v) => {
       const p = this.players[client.sessionId];
@@ -55,10 +173,11 @@ export class Plaza extends Room {
       }
       this.equipTimes.set(p.id, now);
       if (typeof v !== "string" || !this.ownedTrails.get(p.id)?.has(v)) {
-        this.inventory(client, "That trail is locked for this session.");
+        this.inventory(client, "That trail is not unlocked yet.");
         return;
       }
       p.equippedTrailId = resolveOwnedTrail(v, this.ownedTrails.get(p.id)!).id;
+      this.savePlayer(p.id);
       this.inventory(client, "Trail equipped.");
     });
     this.onMessage("ping", (client, v) => {
@@ -99,12 +218,18 @@ export class Plaza extends Room {
       }
     }, DT * 1000);
   }
-  onJoin(client: Client, options: { name?: string }) {
+  onJoin(client: Client, options: { name?: string; resumeToken?: string }) {
     const name =
       String(options.name || "Runner")
         .replace(/[^a-zA-Z0-9 _-]/g, "")
         .trim()
         .slice(0, 18) || "Runner";
+    const profile = profiles.acquire(options.resumeToken);
+    this.profiles.set(client.sessionId, {
+      id: profile.id,
+      token: profile.token,
+    });
+    const { owned, ...savedProgress } = profile.data;
     this.players[client.sessionId] = {
       id: client.sessionId,
       name,
@@ -116,16 +241,16 @@ export class Plaza extends Room {
       velocityZ: 0,
       angle: 0,
       seq: -1,
-      steps: 0,
-      xp: 0,
-      gems: 0,
-      level: 1,
       moving: false,
-      equippedTrailId: DEFAULT_TRAIL,
+      ...savedProgress,
     };
-    this.ownedTrails.set(client.sessionId, new Set([DEFAULT_TRAIL]));
+    this.ownedTrails.set(client.sessionId, new Set(owned));
   }
   onLeave(client: Client) {
+    this.savePlayer(client.sessionId);
+    const profile = this.profiles.get(client.sessionId);
+    if (profile) profiles.release(profile.id);
+    this.profiles.delete(client.sessionId);
     for (const key of this.hoopCooldowns.keys())
       if (key.startsWith(client.sessionId + ":"))
         this.hoopCooldowns.delete(key);
@@ -140,12 +265,14 @@ export class Plaza extends Room {
   tick(now = Date.now()) {
     this.orbManager.tick(now);
     for (const p of Object.values(this.players)) {
+      expireBoost(p, now);
       // One queued command per wall-clock tick: acknowledged inputs are simulated exactly once.
       const i = this.inputs.get(p.id)?.shift();
       const old = Math.floor(p.steps / 10);
       const previous = { x: p.x, y: p.y, z: p.z };
       p.steps += move(p, i || { seq: p.seq, x: 0, z: 0, jump: false });
-      if (Math.floor(p.steps / 10) > old) reward(p, 2);
+      if (Math.floor(p.steps / 10) > old)
+        reward(p, 2 * rebirthMultiplier(p.rebirths || 0));
       for (const h of hoops) {
         const key = p.id + ":" + h.id;
         if (
@@ -153,8 +280,12 @@ export class Plaza extends Room {
           (this.hoopCooldowns.get(key) || 0) < now
         ) {
           this.hoopCooldowns.set(key, now + 20000);
-          reward(p, h.xp);
-          this.broadcast("hoop", { id: h.id, player: p.id, xp: h.xp });
+          reward(p, h.xp * rebirthMultiplier(p.rebirths || 0));
+          this.broadcast("hoop", {
+            id: h.id,
+            player: p.id,
+            xp: h.xp * rebirthMultiplier(p.rebirths || 0),
+          });
         }
       }
       for (const orb of this.orbManager.active) {
@@ -166,6 +297,7 @@ export class Plaza extends Room {
             orbReward(claimed.tier, level),
             resolveOwnedTrail(p.equippedTrailId, this.ownedTrails.get(p.id)!),
           );
+        gains.xp *= rebirthMultiplier(p.rebirths || 0);
         p.steps += gains.steps;
         p.gems += gains.gems;
         reward(p, gains.xp);
@@ -197,6 +329,10 @@ export class Plaza extends Room {
             `${unlocked.length} trails unlocked at level ${p.level}!`,
           );
       }
+    }
+    if (now >= this.nextSave) {
+      for (const id of Object.keys(this.players)) this.savePlayer(id);
+      this.nextSave = now + 5000;
     }
     const patch = this.orbManager.flush();
     if (patch) this.broadcast("orbPatch", patch);

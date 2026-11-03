@@ -1,3 +1,8 @@
+import { audio } from "../media/audio";
+import {
+  rebirthRequirement,
+  rebirthMultiplier,
+} from "../../shared/progression";
 import { createTrailsPanel } from "./trails";
 import { DEFAULT_TRAIL, type TrailInventory } from "../../shared/trails";
 import {
@@ -26,17 +31,27 @@ export function createHud() {
       )
       .join(
         "",
-      )}</div><div id="connection">● CONNECTING</div><div id="location"><small>EXPLORE THE ISLAND</small><strong id="district">Sunburst Plaza</strong><span>Follow the glow. Find your speed.</span></div><nav class="menu"><button data-panel="trails"><i>≋</i><span>Trails</span></button><button data-panel="map"><i>⌖</i><span>Island map</span><kbd>M</kbd></button><button data-panel="settings"><i>⚙</i><span>Settings</span></button><button data-panel="help"><i>?</i><span>How to play</span></button><button id="hello"><i>♡</i><span>Say hello</span></button></nav><div id="roster" class="card"><small>IN THIS WORLD</small><div id="players">Waiting for connection</div></div><div id="toast" role="status"></div><div id="orbLegend" aria-label="Current orb rewards"></div><div id="pickupFeed" role="status" aria-live="polite"></div><div id="streak"></div><div class="levelbar"><div><span id="level">LEVEL 1</span><span id="xpText">0 / 40 XP</span></div><progress id="xp" max="40" value="0"></progress><small>RUN. COLLECT. BREAK YOUR LIMIT.</small></div><div id="help">WASD <span>move</span> &nbsp; SPACE <span>jump</span> &nbsp; DRAG <span>look</span></div><div id="session">ONLINE WORLD · SESSION PROGRESS</div></div><div id="entry"><div class="entry-art"><small>VYRNORA STUDIOS PRESENTS</small><h1>THE WORLD<br>IS YOUR<br><em>RUNWAY.</em></h1><p>A sun-soaked island. A thousand little discoveries.<br>Your next adventure starts with a single step.</p><span class="tag">REAL PLAYERS. ONE SHARED WORLD.</span></div><div class="entry-card"><span class="eyebrow">WELCOME TO SPEEDBOUND</span><h2>Find your fast.</h2><p>Meet in Sunburst Plaza, chase energy orbs, and turn every step into something extraordinary.</p><label for="name">YOUR RUNNER NAME</label><input id="name" maxlength="18" placeholder="Enter a name" autocomplete="nickname"><button id="join">LET’S RUN <span>→</span></button><p id="error">Guest play · Progress lasts for this session</p><div class="entry-foot"><span>ϟ Run & level up</span><span>◆ Collect together</span></div></div></div><dialog id="panel"><div class="panel-head"><h2 id="panelTitle"></h2><button id="closePanel" aria-label="Close panel">×</button></div><div id="panelBody"></div></dialog><div id="touch"><div id="stick"><span></span></div></div><button id="jump" aria-label="Jump">↑<small>JUMP</small></button>`;
+      )}</div><div id="connection">● CONNECTING</div><div id="location"><small>EXPLORE THE ISLAND</small><strong id="district">Sunburst Plaza</strong><span>Follow the glow. Find your speed.</span></div><nav class="menu"><button data-panel="rebirth" class="official rebirth"><img src="/media/rebirth.png" alt=""><span>REBIRTH</span></button><button data-panel="trails" class="official trails"><img src="/media/trails.png" alt=""><span>TRAILS</span></button><button data-panel="map"><i>⌖</i><span>Island map</span><kbd>M</kbd></button><button data-panel="settings" class="gear"><img src="/media/settings.png" alt=""><span>Settings</span></button><button data-panel="help"><i>?</i><span>How to play</span></button><button id="hello"><i>♡</i><span>Say hello</span></button></nav><div id="roster" class="card"><small>IN THIS WORLD</small><div id="players">Waiting for connection</div></div><div id="toast" role="status"></div><div id="orbLegend" aria-label="Current orb rewards"></div><div id="pickupFeed" role="status" aria-live="polite"></div><div id="streak"></div><div class="levelbar"><div><span id="level">LEVEL 1</span><span id="xpText">0 / 40 XP</span></div><progress id="xp" max="40" value="0"></progress><small>RUN. COLLECT. BREAK YOUR LIMIT.</small></div><div id="help">WASD <span>move</span> &nbsp; SPACE <span>jump</span> &nbsp; DRAG <span>look</span></div><div id="session">ONLINE WORLD · SAVED RUNNER</div></div><div id="entry"><div class="entry-art"><small>VYRNORA STUDIOS PRESENTS</small><h1>VELOCITY<br><em>RIFT</em><small>SPEEDBOUND</small></h1><p>A sun-soaked island. A thousand little discoveries.<br>Your next adventure starts with a single step.</p><span class="tag">REAL PLAYERS. ONE SHARED WORLD.</span></div><div class="entry-card"><span class="eyebrow">WELCOME TO SPEEDBOUND</span><h2>Find your fast.</h2><p>Meet in Sunburst Plaza, chase energy orbs, and turn every step into something extraordinary.</p><label for="name">YOUR RUNNER NAME</label><input id="name" maxlength="18" placeholder="Enter a name" autocomplete="nickname"><button id="join">PLAY <span>→</span></button><p id="error">Guest runner · Progress saved on this device</p><button data-panel="settings" class="menu-settings">Music, sound & settings</button><div class="entry-foot"><span>ϟ Run & level up</span><span>◆ Collect together</span></div></div></div><dialog id="panel"><div class="panel-head"><h2 id="panelTitle"></h2><button id="closePanel" aria-label="Close panel">×</button></div><div id="panelBody"></div></dialog><div id="touch"><div id="stick"><span></span></div></div><button id="jump" aria-label="Jump">↑<small>JUMP</small></button>`;
   $("hello").setAttribute("aria-label", "Say hello");
   const panel = $("panel") as HTMLDialogElement;
   let active = "";
   let map: HTMLCanvasElement | undefined;
+  const volume = (v: unknown, fallback: number) =>
+    typeof v === "number" && Number.isFinite(v)
+      ? Math.max(0, Math.min(1, v))
+      : fallback;
   let settings = {
     night: false,
     quality: "high",
     sensitivity: 1,
     comfort: false,
     remoteTrails: true,
+    shadows: true,
+    trailEffects: true,
+    master: 0.65,
+    music: 0.35,
+    sfx: 0.65,
+    muted: false,
   };
   try {
     const saved = JSON.parse(
@@ -48,9 +63,17 @@ export function createHud() {
       sensitivity: Math.max(0.3, Math.min(2, Number(saved.sensitivity) || 1)),
       comfort: saved.comfort === true,
       remoteTrails: saved.remoteTrails !== false,
+      shadows: saved.shadows !== false,
+      trailEffects: saved.trailEffects !== false,
+      master: volume(saved.master, 0.65),
+      music: volume(saved.music, 0.35),
+      sfx: volume(saved.sfx, 0.65),
+      muted: saved.muted === true,
     };
   } catch {}
   let onSettings = () => {};
+  let onRebirth = (_expected: number) => {};
+  let onReward = (_kind: string) => {};
   let onEquip = (_id: string) => {};
   let trailPanel: ReturnType<typeof createTrailsPanel> | undefined;
   let inventory: TrailInventory = {
@@ -68,6 +91,7 @@ export function createHud() {
     try {
       localStorage.setItem("rift-visual-settings", JSON.stringify(settings));
     } catch {}
+    audio.configure(settings);
     onSettings();
   }
   function open(name: string) {
@@ -78,11 +102,24 @@ export function createHud() {
     map = undefined;
     $("panelTitle").textContent =
       {
+        rebirth: "A golden new beginning",
         trails: "Leave a little light",
         map: "Your island awaits",
         settings: "Make it yours",
         help: "A little momentum goes a long way",
       }[name] || "";
+    if (name === "rebirth") {
+      const p = player,
+        count = p?.rebirths || 0,
+        required = rebirthRequirement(count);
+      $("panelBody").innerHTML =
+        `<div class="rebirth-panel"><img src="/media/rebirth.png" alt="Rebirth"><h3>Go further on your next run</h3><dl><dt>Current level</dt><dd>${p?.level || 1}</dd><dt>Rebirths</dt><dd>${count}</dd><dt>Required level</dt><dd>${required}</dd><dt>XP multiplier</dt><dd>${rebirthMultiplier(count)}× → ${rebirthMultiplier(count + 1)}×</dd></dl><p>Reset Level, XP and Steps. Keep every unlocked trail and all Gems. Gain a permanent +25% base XP multiplier.</p><button id="confirmRebirth" ${(p?.level || 0) < required ? "disabled" : ""}>Confirm rebirth</button><button id="cancelRebirth">Cancel</button></div>`;
+      $("confirmRebirth").onclick = () => {
+        ($("confirmRebirth") as HTMLButtonElement).disabled = true;
+        onRebirth(count);
+      };
+      $("cancelRebirth").onclick = () => panel.close();
+    }
     if (name === "trails") {
       trailPanel = createTrailsPanel($("panelBody"), (id) => onEquip(id));
       trailPanel.inventory(inventory);
@@ -95,6 +132,20 @@ export function createHud() {
     if (name === "settings") {
       $("panelBody").innerHTML =
         `<label class="setting">Night atmosphere <input id="night" type="checkbox" ${settings.night ? "checked" : ""}></label><p class="hint">A personal visual setting. Multiplayer time and rewards are unchanged.</p><label class="setting">Graphics <select id="quality"><option value="high">High · soft shadows</option><option value="low">Low · lighter rendering</option></select></label><label class="setting">Camera sensitivity <input id="sensitivity" type="range" min="0.3" max="2" step="0.1" value="${settings.sensitivity}"></label><label class="setting">Reduce motion & particles <input id="comfort" type="checkbox" ${settings.comfort ? "checked" : ""}></label><label class="setting">Show other players’ trails <input id="remoteTrails" type="checkbox" ${settings.remoteTrails ? "checked" : ""}></label>`;
+      $("panelBody").insertAdjacentHTML(
+        "beforeend",
+        `<label class="setting">Shadows<input id="shadows" type="checkbox" ${settings.shadows ? "checked" : ""}></label><label class="setting">Trail effects<input id="trailEffects" type="checkbox" ${settings.trailEffects ? "checked" : ""}></label>${(["master", "music", "sfx"] as const).map((key) => `<label class="setting">${key === "sfx" ? "SFX" : key[0].toUpperCase() + key.slice(1)} volume<input id="${key}" type="range" min="0" max="1" step=".05" value="${settings[key]}"></label>`).join("")}<label class="setting">Mute all<input id="muted" type="checkbox" ${settings.muted ? "checked" : ""}></label>`,
+      );
+      for (const key of ["master", "music", "sfx"] as const)
+        $(key).oninput = () => {
+          settings[key] = Number(($(key) as HTMLInputElement).value);
+          save();
+        };
+      for (const key of ["shadows", "trailEffects", "muted"] as const)
+        $(key).onchange = () => {
+          settings[key] = ($(key) as HTMLInputElement).checked;
+          save();
+        };
       ($("quality") as HTMLSelectElement).value = settings.quality;
       for (const id of [
         "night",
@@ -118,7 +169,7 @@ export function createHud() {
     }
     if (name === "help")
       $("panelBody").innerHTML =
-        `<div class="help-grid"><article><i>ϟ</i><h3>Keep moving</h3><p>WASD or arrow keys to run. Space to jump. On touchscreens, use the joystick and jump button.</p></article><article><i>◆</i><h3>Chase the glow</h3><p>Blue → Purple → Red: higher tiers give more Steps and XP. At level 1: 2 / 5 / 10. At level 10: 10 / 25 / 50. Gold retains Gems. Shared orbs return at new positions: Blue 6–10s, Purple 10–15s, Red 14–22s.</p></article><article><i>◎</i><h3>Catch some air</h3><p>Glowing blue launch pads lift you toward rings. Pass through a ring for 20 XP; each has a 20-second personal cooldown.</p></article><article><i>⌖</i><h3>Explore together</h3><p>Drag to turn the camera, scroll to zoom. Use M for the island map, Escape to close menus. Say hello to real players.</p></article></div><div class="orb-routes">${orbRoutes.map((r) => `<p><b>${r.name}</b> · ${r.hint}</p>`).join("")}</div><p class="hint">A pickup streak is visual only; it does not multiply rewards. Trails unlock free at session level milestones. Gem bonuses apply only to Gem-paying pickups; Steps bonuses apply only to orb pickups. Progress is session-only. Leaving or reconnecting starts a new runner. Shops, pets and races are not yet available.</p>`;
+        `<div class="help-grid"><article><i>ϟ</i><h3>Keep moving</h3><p>WASD or arrow keys to run. Space to jump. On touchscreens, use the joystick and jump button.</p></article><article><i>◆</i><h3>Chase the glow</h3><p>Blue → Purple → Red: higher tiers give more Steps and XP. At level 1: 2 / 5 / 10. At level 10: 10 / 25 / 50. Gold retains Gems. Shared orbs return at new positions: Blue 6–10s, Purple 10–15s, Red 14–22s.</p></article><article><i>◎</i><h3>Catch some air</h3><p>Glowing blue launch pads lift you toward rings. Pass through a ring for 20 XP; each has a 20-second personal cooldown.</p></article><article><i>⌖</i><h3>Explore together</h3><p>Drag to turn the camera, scroll to zoom. Use M for the island map, Escape to close menus. Say hello to real players.</p></article></div><div class="orb-routes">${orbRoutes.map((r) => `<p><b>${r.name}</b> · ${r.hint}</p>`).join("")}</div><p class="hint">A pickup streak is visual only; it does not multiply rewards. Trails unlock free at level milestones. Gem bonuses apply only to Gem-paying pickups; Steps bonuses apply only to orb pickups. Level, Gems, Steps, rebirths and unlocked trails are saved for this device. Clearing browser data loses access to the guest runner. Journey challenges restart when reconnecting. Shops, pets and races are not yet available.</p>`;
     if (!panel.open) panel.showModal();
   }
   for (const button of document.querySelectorAll<HTMLElement>("[data-panel]")) {
@@ -138,6 +189,13 @@ export function createHud() {
         panel.close();
     }
   };
+  const offers = document.createElement("div");
+  offers.id = "rewardOffers";
+  offers.innerHTML =
+    '<button data-reward="level" aria-label="Watch an ad for one level"><img src="/media/reward-level.png" alt="+1 Level"></button><button data-reward="speed" aria-label="Watch an ad for twice the speed for two minutes"><img src="/media/reward-speed.png" alt="2× Speed for 2 minutes"></button><small>Ad rewards currently unavailable</small><span id="boostCountdown"></span>';
+  $("hud").append(offers);
+  for (const b of offers.querySelectorAll<HTMLButtonElement>("button"))
+    b.onclick = () => onReward(b.dataset.reward!);
   const numbers = { steps: 0, gems: 0, speed: 9 };
   let player: Player | undefined;
   let timer: ReturnType<typeof setTimeout>;
@@ -188,6 +246,12 @@ export function createHud() {
     maximumFractionDigits: 1,
   });
   return {
+    set onRebirth(fn: (expected: number) => void) {
+      onRebirth = fn;
+    },
+    set onReward(fn: (kind: string) => void) {
+      onReward = fn;
+    },
     pickup,
     clearPickups,
     inventory(value: TrailInventory) {
@@ -221,7 +285,7 @@ export function createHud() {
           }),
         );
       }
-      $("level").textContent = `LEVEL ${p.level}`;
+      $("level").textContent = `LEVEL ${p.level} · ${p.rebirths || 0} REBIRTHS`;
       $("levelNumber").textContent = String(p.level);
       $("xpText").textContent = `${p.xp} / ${p.level * 40} XP`;
       const xp = $("xp") as HTMLProgressElement;

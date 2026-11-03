@@ -21,13 +21,15 @@ export function createTrailsPanel(
   let selected = DEFAULT_TRAIL,
     awaiting = false,
     time = 0;
-  container.innerHTML = `<p class="trail-session">Session collection · Earn levels to unlock trails for free. Leaving or rejoining resets your collection. Permanent purchases are unavailable.</p>
+  container.innerHTML = `<p class="trail-session">Earn levels to unlock trails for free. Your collection is saved with your guest runner and survives rebirth. Permanent purchases are unavailable.</p>
   <div class="trail-feature"><div id="trailPreview" aria-label="Live 3D trail preview"><span>LIVE EFFECT PREVIEW</span></div><div class="trail-detail"><small id="trailRarity"></small><h3 id="trailName"></h3><div id="trailBonuses"></div><p id="trailUnlock"></p><button id="equipTrail">Equip trail</button><button id="defaultTrail" class="secondary">Return to Default</button><p id="trailStatus" role="status"></p></div></div>
   <div class="trail-filter"><label>Find a trail<input id="trailSearch" type="search" placeholder="Search 77 trails…"></label><label>Rarity<select id="trailFilter"><option value="all">All rarities</option>${Object.keys(
     RARITY_COLORS,
   )
     .map((r) => `<option>${r}</option>`)
-    .join("")}</select></label></div><div id="trailGrid"></div>`;
+    .join(
+      "",
+    )}</select></label></div><div class="trail-paging"><button id="trailPrev">Previous</button><button id="trailNext">Next</button></div><div id="trailGrid"></div>`;
   const el = (id: string) => container.querySelector<HTMLElement>("#" + id)!;
   const preview = el("trailPreview");
   const renderer = new T.WebGLRenderer({ antialias: true, alpha: false });
@@ -164,6 +166,17 @@ export function createTrailsPanel(
     detail();
     equip(id);
   }
+  for (const [id, delta] of [
+    ["trailPrev", -1],
+    ["trailNext", 1],
+  ] as const)
+    el(id).onclick = () => {
+      const index = TRAILS.findIndex((t) => t.id === selected);
+      selected = TRAILS[(index + delta + TRAILS.length) % TRAILS.length].id;
+      effect.setTrail(selected);
+      detail();
+      cards();
+    };
   el("equipTrail").onclick = () => request(selected);
   el("defaultTrail").onclick = () => request(DEFAULT_TRAIL);
   el("trailSearch").oninput = cards;

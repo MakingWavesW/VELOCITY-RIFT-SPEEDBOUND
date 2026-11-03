@@ -1,3 +1,9 @@
+import { platform } from "./platform/bridge";
+import { confirmReward } from "./ui/rewardOffer";
+import { audio } from "./media/audio";
+import { startup, setMediaState, inputPaused } from "./media/startup";
+import { LevelCelebration } from "./ui/celebration";
+const celebration = new LevelCelebration();
 import { createTrail } from "./world/trails";
 import { DEFAULT_TRAIL, type TrailInventory } from "../shared/trails";
 import { NETWORK, SnapshotBuffer } from "./network/snapshots";
@@ -28,6 +34,7 @@ import "./style.css";
 
 const hud = createHud();
 const journeyUI = createJourneyUI();
+journeyUI.onComplete = () => audio.effect("quest");
 const scene = new T.Scene();
 const camera = new T.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 1800);
 const renderer = new T.WebGLRenderer({ antialias: true });
@@ -46,7 +53,9 @@ function applySettings() {
   renderer.setPixelRatio(
     Math.min(devicePixelRatio, hud.settings.quality === "low" ? 0.85 : 1.5),
   );
-  renderer.shadowMap.enabled = hud.settings.quality !== "low";
+  renderer.shadowMap.enabled =
+    hud.settings.shadows && hud.settings.quality !== "low";
+  audio.configure(hud.settings);
 }
 hud.onSettings = applySettings;
 applySettings();
@@ -68,11 +77,14 @@ let localPrevious: Player | undefined,
 let lastSnapshot = 0,
   serverOffset = 0,
   lastServerTime = 0;
+let confirmedVertical: number | undefined;
 let predictionError = 0,
   correctionDistance = 0,
   hardCorrections = 0,
   rtt = 0;
 let lastOrbSync = 0;
+let offeredReward: "level" | "speed" | undefined;
+let rewardBusy = false;
 function requestOrbSync() {
   if (room && performance.now() - lastOrbSync > 1000) {
     lastOrbSync = performance.now();
@@ -121,7 +133,8 @@ onkeydown = (e) => {
     hud.open("map");
     return;
   }
-  if (hud.panel.open || !connected) return;
+  if (document.querySelector("dialog[open]") || !connected || inputPaused())
+    return;
   if ([" ", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key))
     e.preventDefault();
   keys.add(e.key.toLowerCase());
@@ -186,15 +199,88 @@ function setStatus(text: string) {
 $("join").onclick = async () => {
   const button = $("join") as HTMLButtonElement;
   button.disabled = true;
+  setMediaState("CONNECTING");
+  void audio.unlock().catch(() => {});
   $("error").textContent = "Finding your world…";
   try {
     const endpoint =
       (import.meta as unknown as { env: Record<string, string> }).env
         .VITE_SERVER_URL ||
       `${location.protocol === "https:" ? "wss" : "ws"}://${location.hostname}:2567`;
+    let resumeToken: string | undefined;
+    try {
+      resumeToken = localStorage.getItem("rift-runner-token") || undefined;
+    } catch {}
     room = await new Client(endpoint).joinOrCreate("plaza", {
       name: ($("name") as HTMLInputElement).value,
+      resumeToken,
     });
+    room.onMessage("profile", (v: { token: string }) => {
+      try {
+        localStorage.setItem("rift-runner-token", v.token);
+      } catch {
+        hud.toast(
+          "Storage unavailable: this runner cannot be restored after leaving.",
+        );
+      }
+    });
+    room.send("profile");
+    room.onMessage("progression", (v: { ok: boolean; message: string }) => {
+      hud.toast(v.message);
+      if (v.ok) {
+        hud.panel.close();
+        audio.effect("rebirth");
+      }
+    });
+    room.onMessage(
+      "rewardOffer",
+      async (v: { available: boolean; message: string }) => {
+        const kind = offeredReward;
+        if (!v.available || !platform.rewardsSupported || !kind) {
+          rewardBusy = false;
+          hud.toast(v.message);
+          return;
+        }
+        clearInput();
+        if (await confirmReward(kind)) room?.send("rewardPrepare", { kind });
+        else rewardBusy = false;
+      },
+    );
+    room.onMessage(
+      "rewardTransaction",
+      (v: { id?: string; kind?: "level" | "speed"; error?: string }) => {
+        if (!v.id || !v.kind) {
+          rewardBusy = false;
+          hud.toast(v.error || "Reward unavailable.");
+          return;
+        }
+        const transaction = v.id,
+          activeRoom = room;
+        clearInput();
+        setMediaState("AD_PLAYBACK");
+        // Placement IDs are presentation routing, not verification proof.
+        const shown = platform.showRewarded(
+          v.kind === "level" ? "rift_level" : "rift_speed",
+          () => {
+            setMediaState(connected ? "GAMEPLAY" : "MAIN_MENU");
+            rewardBusy = false;
+            if (connected && room === activeRoom)
+              room?.send("rewardCheck", { id: transaction });
+          },
+        );
+        if (!shown) {
+          rewardBusy = false;
+          setMediaState("GAMEPLAY");
+          hud.toast("No rewarded advertisement is available.");
+        }
+      },
+    );
+    room.onMessage("rewardResult", (v: { ok: boolean; message: string }) =>
+      hud.toast(v.message),
+    );
+    celebration.reset();
+    confirmedVertical = undefined;
+    setMediaState("GAMEPLAY");
     seq = 0;
     pending = [];
     local = undefined;
@@ -203,6 +289,7 @@ $("join").onclick = async () => {
     correction.set(0, 0, 0);
     localPrevious = undefined;
     lastServerTime = 0;
+
     orbRenderer.clear();
     lastOrbSync = -Infinity;
     connected = true;
@@ -242,6 +329,16 @@ $("join").onclick = async () => {
         const p = states[room!.sessionId];
         if (p) {
           const previous = local?.level;
+          celebration.snapshot(p.level, hud.settings.comfort);
+          if (confirmedVertical === 0 && p.verticalVelocity > 1)
+            audio.effect(p.verticalVelocity > 15 ? "boost" : "jump");
+          if (
+            confirmedVertical !== undefined &&
+            confirmedVertical < -1 &&
+            p.verticalVelocity === 0
+          )
+            audio.effect("landing");
+          confirmedVertical = p.verticalVelocity;
           const before = local;
           pending = pending.filter((i) => i.seq > p.seq);
           local = { ...p };
@@ -283,6 +380,7 @@ $("join").onclick = async () => {
     );
     room.onMessage("trailInventory", (value: TrailInventory) => {
       hud.inventory(value);
+      if (value.message === "Trail equipped.") audio.effect("equip");
       journeyUI.inventory(value);
     });
     room.send("trailInventory");
@@ -305,6 +403,7 @@ $("join").onclick = async () => {
         );
       if (event.player === room?.sessionId) {
         hud.pickup(event);
+        audio.effect("pickup");
         journeyUI.pickup(event);
       }
     });
@@ -324,6 +423,9 @@ $("join").onclick = async () => {
     });
     room.onLeave(() => {
       connected = false;
+      rewardBusy = false;
+      celebration.reset();
+      setMediaState("MAIN_MENU");
       journeyUI.reset();
       local = localPrevious = undefined;
       buffers.clear();
@@ -343,10 +445,12 @@ $("join").onclick = async () => {
       setStatus("● DISCONNECTED");
       hud.panel.close();
       $("entry").style.display = "flex";
-      $("error").textContent = "Connection ended. Rejoin starts a new session.";
+      $("error").textContent =
+        "Connection ended. Rejoin to restore your saved runner.";
       button.disabled = false;
     });
   } catch (e) {
+    setMediaState("MAIN_MENU");
     setStatus("● OFFLINE");
     $("error").textContent =
       `Could not join: ${e instanceof Error ? e.message : "server unavailable"}`;
@@ -357,7 +461,7 @@ $("join").onclick = async () => {
 // unacknowledged window; a stalled connection cannot build up unlimited predictions.
 setInterval(() => {
   if (!connected || !local || !room) return;
-  if (hud.panel.open || document.hidden) clearInput();
+  if (document.querySelector("dialog[open]") || inputPaused()) clearInput();
   if (pending.length >= NETWORK.maxPending) return;
   const x =
     Number(keys.has("d") || keys.has("arrowright")) -
@@ -448,7 +552,8 @@ function frame() {
         quality: isLocal ? hud.settings.quality : "low",
         comfort: hud.settings.comfort,
       },
-      isLocal || (hud.settings.remoteTrails && !distant),
+      hud.settings.trailEffects &&
+        (isLocal || (hud.settings.remoteTrails && !distant)),
     );
   }
   for (const [id, a] of avatars)
@@ -464,6 +569,13 @@ function frame() {
   world.update(t, dt, x, z);
   effects.update(dt);
   hud.update(dt);
+  const boost = Math.max(
+    0,
+    Math.ceil(
+      ((local?.boostUntil || 0) - (performance.now() + serverOffset)) / 1000,
+    ),
+  );
+  $("boostCountdown").textContent = boost ? `2× SPEED · ${boost}s` : "";
   const visibleLocal = room
     ? avatars.get(room.sessionId)?.g.position
     : undefined;
@@ -516,6 +628,21 @@ function frame() {
 camera.position.set(0, 14, 25);
 setStatus("● OFFLINE");
 frame();
+void startup();
+hud.onRebirth = (expected) => {
+  if (connected) room?.send("rebirth", { expected });
+};
+hud.onReward = (kind) => {
+  if (rewardBusy) return;
+  if (connected && (kind === "level" || kind === "speed")) {
+    offeredReward = kind;
+    rewardBusy = true;
+    room?.send("rewardOffer", { kind });
+  } else hud.toast("Join a world to view reward availability.");
+};
+document.addEventListener("click", (e) => {
+  if ((e.target as HTMLElement).closest("button")) audio.effect("click");
+});
 onresize = () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
@@ -529,6 +656,7 @@ if ((import.meta as unknown as { env: { DEV: boolean } }).env.DEV) {
   document.body.append(overlay);
   Object.defineProperty(window, "riftDiagnostics", {
     get: () => ({
+      media: audio.diagnostics,
       players: JSON.parse(JSON.stringify(states)),
       localId: room?.sessionId,
       predicted: local ? { ...local } : undefined,

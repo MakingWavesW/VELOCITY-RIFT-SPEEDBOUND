@@ -1,3 +1,4 @@
+import { enterMenu } from "./menu-helper.mjs";
 import { chromium } from "@playwright/test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -44,7 +45,7 @@ try {
     [p, "Orb Runner"],
     [q, "Route Explorer"],
   ]) {
-    await page.goto("http://localhost:5173");
+    await page.goto("http://localhost:5173"); await enterMenu(page);
     await page.locator("#name").fill(name);
     await page.locator("#join").click();
     await page.locator("#entry").waitFor({ state: "hidden" });
@@ -163,7 +164,7 @@ try {
   );
   const m = await mobile.newPage();
   m.on("pageerror", (e) => errors.push(e.message));
-  await m.goto("http://localhost:5173");
+  await m.goto("http://localhost:5173"); await enterMenu(m);
   await m.locator("#name").fill("Touch Runner");
   await m.locator("#join").click();
   await m.locator("#entry").waitFor({ state: "hidden" });

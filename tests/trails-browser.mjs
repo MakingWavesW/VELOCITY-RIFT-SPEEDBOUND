@@ -1,3 +1,4 @@
+import { enterMenu } from "./menu-helper.mjs";
 import { chromium } from "@playwright/test";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
@@ -36,7 +37,7 @@ async function page(name, mobile = false) {
   p.on("console", (m) => {
     if (m.type() === "error") errors.push(m.text());
   });
-  await p.goto("http://localhost:5173");
+  await p.goto("http://localhost:5173"); await enterMenu(p);
   await p.locator("#name").fill(name);
   await p.locator("#join").click();
   await p.waitForFunction(

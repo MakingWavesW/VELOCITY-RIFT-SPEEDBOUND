@@ -227,7 +227,7 @@ export type TrailInventory = {
   owned: string[];
   equipped: string;
   level: number;
-  sessionOnly: true;
+  sessionOnly: boolean;
   message?: string;
 };
 export function eligibleTrails(level: number) {

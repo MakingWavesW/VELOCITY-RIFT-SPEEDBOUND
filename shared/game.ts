@@ -19,8 +19,12 @@ export type Player = {
   level: number;
   moving: boolean;
   launchCooldown?: number;
+  rebirths?: number;
+  boostUntil?: number;
+  speedMultiplier?: number;
 };
-export const speed = (p: Player) => Math.min(32, 9 + (p.level - 1) * 0.7);
+export const speed = (p: Player) =>
+  Math.min(32, 9 + (p.level - 1) * 0.7) * (p.speedMultiplier === 2 ? 2 : 1);
 export const MOVEMENT = Object.freeze({
   acceleration: 15,
   braking: 36,

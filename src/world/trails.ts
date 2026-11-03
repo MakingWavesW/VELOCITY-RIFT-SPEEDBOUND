@@ -2,7 +2,7 @@ import * as T from "three";
 import { DEFAULT_TRAIL, TRAIL_BY_ID } from "../../shared/trails";
 export type TrailSettings = { quality: string; comfort: boolean };
 const topology = [0, -1, 0, 1, 1, -1, 1, -1, 0, 1, 1, 1];
-const CAPACITY = 72,
+const CAPACITY = 1152,
   PARTICLES = 64;
 const vertex = `attribute vec4 tint; varying vec4 vTint; varying vec2 vUv;
 void main(){vTint=tint;vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`;
@@ -212,18 +212,18 @@ export function createTrail(scene: T.Scene, id = DEFAULT_TRAIL) {
         return;
       }
       const f = definition.family,
-        lifetime = settings.comfort ? 0.32 : f === "soul" ? 0.8 : 0.75;
+        lifetime = 5;
       if (!initialized) {
         previous.copy(position);
         initialized = true;
       }
       const distance = previous.distanceTo(position);
-      if (distance > Math.max(8, dt * 45)) {
+      if (distance > Math.max(8, dt * 90)) {
         clear();
         previous.copy(position);
         initialized = true;
       } else if (distance > 0.001) {
-        const spacing = settings.quality === "low" ? 0.3 : 0.16;
+        const spacing = settings.quality === "low" ? 0.6 : 0.3;
         if (!nodes.length)
           add(
             previous.x,
@@ -292,7 +292,7 @@ export function createTrail(scene: T.Scene, id = DEFAULT_TRAIL) {
                   ? 0.3
                   : f === "lightning"
                     ? 0.095
-                    : 0.3) * (settings.comfort ? 0.6 : 1);
+                    : 0.3) * (settings.comfort ? 1.2 : 2);
           const ca = colorA.copy(colorAt(a.phase + t * 0.5, lane)),
             cb = colorAt(b.phase + t * 0.5, lane);
           for (let vertex = 0; vertex < 6; vertex++) {

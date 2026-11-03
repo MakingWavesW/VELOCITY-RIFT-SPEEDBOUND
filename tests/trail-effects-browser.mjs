@@ -10,6 +10,7 @@ const browser = await chromium.launch({
     "--enable-unsafe-swiftshader",
   ],
 });
+await fs.mkdir("artifacts/trails",{recursive:true});
 const errors = [];
 try {
   const page = await browser.newPage({ viewport: { width: 600, height: 450 } });
@@ -74,9 +75,11 @@ try {
     assert.ok(stats.segments > 4);
     await page.screenshot({ path: `artifacts/trails/effect-${id}.png` });
   }
+  const lingering = await page.evaluate(() => { const {T,trail}=window.harness; trail.update(new T.Vector3(Math.sin((179/60)*2)*3,0,Math.cos((179/60)*2)*3), 6.9, 1/60, {quality:"low",comfort:false}); return trail.stats; });
+  assert.ok(lingering.segments>0, "trail remains nearly four seconds after stopping");
   const stopped = await page.evaluate(() => {
     const { T, trail } = window.harness;
-    for (let n = 180; n < 300; n++)
+    for (let n = 420; n < 500; n++)
       trail.update(
         new T.Vector3(
           Math.sin((179 / 60) * 2) * 3,

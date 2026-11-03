@@ -1299,25 +1299,561 @@ button {
   height: 6px;
 }
 
-
 /* Speedbound Runner Journey: pure client-side guidance (no reward authority). */
-#journeyOverlay { position:fixed;inset:0;pointer-events:none;z-index:8;display:none;font-family:Nunito,sans-serif; }
-#journey { position:absolute;right:24px;top:300px;width:240px;max-width:calc(100vw - 30px);background:linear-gradient(165deg,#173b55ed,#102b43ee);border:1px solid #bcf7ff63;border-radius:20px;box-shadow:0 10px 35px #07253865;color:#fff;padding:16px 36px 14px 17px;overflow:hidden;backdrop-filter:blur(9px); }
-.journey-head { display:flex;justify-content:space-between;gap:7px;font-size:9px;letter-spacing:1.1px;font-weight:900;color:#ffe49a; }
-.journey-head strong { color:#b6faff;white-space:nowrap; }
-.journey-body { margin-top:11px; }
-.journey-body b { display:block;font-family:"Lilita One",sans-serif;font-weight:400;font-size:19px; }
-.journey-body small { display:block;font-size:10px;opacity:.87;margin-top:5px;line-height:1.4; }
-.journey-track {margin-top:11px;height:9px;background:#ffffff35;overflow:hidden;border-radius:20px;border:1px solid #ffffff33;}
-#journeyFill { display:block;background:linear-gradient(90deg,#5fe8fb,#f8d176);height:100%;width:0%;border-radius:20px;transition:width .35s ease;box-shadow:0 0 12px #55f0ea; }
-#journeyNext {position:absolute;right:6px;top:45%;pointer-events:auto;color:#ffda82;background:#ffffff18;font-size:25px;width:26px;height:36px;border-radius:9px;}
-#orbCompass {position:absolute;bottom:95px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:12px;width:220px;background:#102f49de;border:1px solid #bdf5ff91;border-radius:15px;color:#fff;padding:9px 13px;box-shadow:0 5px 22px #102a4670;backdrop-filter:blur(8px);}
-#orbCompass > span:first-child {font-size:26px;color:#ffdf8b;}
-#orbCompass > div {flex:1;min-width:0;}
-#compassName {font-size:11px;letter-spacing:1px;font-weight:900;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-#compassDistance {display:block;color:#d8eaf5;font-size:10px;margin-top:3px;}
-#compassArrow {display:block;transform-origin:center;color:#ffe394;font-size:27px;font-family:Arial,sans-serif;transition:transform .18s ease;}
-@media(max-width:1000px){#journey{top:245px;right:12px;width:205px;padding:12px 30px 11px 13px;}.journey-body b{font-size:17px;}}
-@media(max-width:650px){#journey{top:157px;right:10px;width:178px;padding:9px 27px 9px 10px;border-radius:12px;}.journey-head{font-size:7px;letter-spacing:.2px}.journey-body{margin-top:5px}.journey-body b{font-size:14px}.journey-body small{font-size:8px;margin-top:3px}.journey-track{margin-top:5px;height:7px}#journeyNext{top:36%;font-size:20px;width:21px}#orbCompass{bottom:76px;width:175px;padding:5px 8px;gap:6px}#orbCompass>span:first-child{font-size:17px}#compassArrow{font-size:20px}#compassName{font-size:9px}#compassDistance{font-size:8px}}
-@media(max-height:520px){#journey{top:95px;right:12px;width:176px}#orbCompass{bottom:48px;left:auto;right:10px;transform:none}}
-@media(prefers-reduced-motion:reduce){#journeyFill,#compassArrow{transition:none}}
+#journeyOverlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 8;
+  display: none;
+  font-family: Nunito, sans-serif;
+}
+#journey {
+  position: absolute;
+  right: 24px;
+  top: 300px;
+  width: 240px;
+  max-width: calc(100vw - 30px);
+  background: linear-gradient(165deg, #173b55ed, #102b43ee);
+  border: 1px solid #bcf7ff63;
+  border-radius: 20px;
+  box-shadow: 0 10px 35px #07253865;
+  color: #fff;
+  padding: 16px 36px 14px 17px;
+  overflow: hidden;
+  backdrop-filter: blur(9px);
+}
+.journey-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 7px;
+  font-size: 9px;
+  letter-spacing: 1.1px;
+  font-weight: 900;
+  color: #ffe49a;
+}
+.journey-head strong {
+  color: #b6faff;
+  white-space: nowrap;
+}
+.journey-body {
+  margin-top: 11px;
+}
+.journey-body b {
+  display: block;
+  font-family: "Lilita One", sans-serif;
+  font-weight: 400;
+  font-size: 19px;
+}
+.journey-body small {
+  display: block;
+  font-size: 10px;
+  opacity: 0.87;
+  margin-top: 5px;
+  line-height: 1.4;
+}
+.journey-track {
+  margin-top: 11px;
+  height: 9px;
+  background: #ffffff35;
+  overflow: hidden;
+  border-radius: 20px;
+  border: 1px solid #ffffff33;
+}
+#journeyFill {
+  display: block;
+  background: linear-gradient(90deg, #5fe8fb, #f8d176);
+  height: 100%;
+  width: 0%;
+  border-radius: 20px;
+  transition: width 0.35s ease;
+  box-shadow: 0 0 12px #55f0ea;
+}
+#journeyNext {
+  position: absolute;
+  right: 6px;
+  top: 45%;
+  pointer-events: auto;
+  color: #ffda82;
+  background: #ffffff18;
+  font-size: 25px;
+  width: 26px;
+  height: 36px;
+  border-radius: 9px;
+}
+#orbCompass {
+  position: absolute;
+  bottom: 95px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 220px;
+  background: #102f49de;
+  border: 1px solid #bdf5ff91;
+  border-radius: 15px;
+  color: #fff;
+  padding: 9px 13px;
+  box-shadow: 0 5px 22px #102a4670;
+  backdrop-filter: blur(8px);
+}
+#orbCompass > span:first-child {
+  font-size: 26px;
+  color: #ffdf8b;
+}
+#orbCompass > div {
+  flex: 1;
+  min-width: 0;
+}
+#compassName {
+  font-size: 11px;
+  letter-spacing: 1px;
+  font-weight: 900;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#compassDistance {
+  display: block;
+  color: #d8eaf5;
+  font-size: 10px;
+  margin-top: 3px;
+}
+#compassArrow {
+  display: block;
+  transform-origin: center;
+  color: #ffe394;
+  font-size: 27px;
+  font-family: Arial, sans-serif;
+  transition: transform 0.18s ease;
+}
+@media (max-width: 1000px) {
+  #journey {
+    top: 245px;
+    right: 12px;
+    width: 205px;
+    padding: 12px 30px 11px 13px;
+  }
+  .journey-body b {
+    font-size: 17px;
+  }
+}
+@media (max-width: 650px) {
+  #journey {
+    top: 157px;
+    right: 10px;
+    width: 178px;
+    padding: 9px 27px 9px 10px;
+    border-radius: 12px;
+  }
+  .journey-head {
+    font-size: 7px;
+    letter-spacing: 0.2px;
+  }
+  .journey-body {
+    margin-top: 5px;
+  }
+  .journey-body b {
+    font-size: 14px;
+  }
+  .journey-body small {
+    font-size: 8px;
+    margin-top: 3px;
+  }
+  .journey-track {
+    margin-top: 5px;
+    height: 7px;
+  }
+  #journeyNext {
+    top: 36%;
+    font-size: 20px;
+    width: 21px;
+  }
+  #orbCompass {
+    bottom: 76px;
+    width: 175px;
+    padding: 5px 8px;
+    gap: 6px;
+  }
+  #orbCompass > span:first-child {
+    font-size: 17px;
+  }
+  #compassArrow {
+    font-size: 20px;
+  }
+  #compassName {
+    font-size: 9px;
+  }
+  #compassDistance {
+    font-size: 8px;
+  }
+}
+@media (max-height: 520px) {
+  #journey {
+    top: 95px;
+    right: 12px;
+    width: 176px;
+  }
+  #orbCompass {
+    bottom: 48px;
+    left: auto;
+    right: 10px;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #journeyFill,
+  #compassArrow {
+    transition: none;
+  }
+}
+/* Official cinematic/menu presentation */
+body.starting > :not(#studioIntro) {
+  visibility: hidden !important;
+}
+#studioIntro {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+#studioIntro video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: opacity 0.55s;
+}
+#studioIntro video.intro-fade {
+  opacity: 0;
+}
+#studioIntro button {
+  padding: 16px 24px;
+  color: white;
+  background: #152938;
+  border: 1px solid #8acbde;
+  border-radius: 12px;
+}
+#entry {
+  background:
+    linear-gradient(
+      90deg,
+      rgba(11, 22, 42, 0.5),
+      rgba(11, 22, 42, 0.08) 55%,
+      rgba(11, 22, 42, 0.65)
+    ),
+    url("/media/sunset.png") center/cover;
+  animation: menu-in 0.7s both;
+  padding: clamp(20px, 5vw, 80px);
+  gap: 32px;
+}
+#entry::before,
+#entry::after {
+  display: none;
+}
+.entry-art {
+  max-width: 620px;
+  text-shadow: 0 3px 22px #172235;
+}
+.entry-art h1 {
+  font-size: clamp(46px, 7vw, 100px);
+  line-height: 0.95;
+}
+.entry-art h1 small {
+  display: block;
+  font-size: 0.3em;
+  letter-spacing: 0.18em;
+  margin-top: 20px;
+}
+.entry-card {
+  background: rgba(16, 34, 54, 0.88);
+  color: #f5fbff;
+  width: 380px;
+  max-width: 100%;
+  border: 1px solid #ffffff50;
+  box-shadow: 0 20px 80px #07152760;
+  backdrop-filter: blur(12px);
+}
+.entry-card h2,
+.entry-card label {
+  color: #fff;
+}
+.entry-card p {
+  color: #d0e6ed;
+}
+#join {
+  background: linear-gradient(120deg, #a5ffb2, #3bd4b8);
+  color: #0d3c3b;
+  transition:
+    transform 0.2s,
+    filter 0.2s;
+}
+#join:hover {
+  transform: translateY(-3px);
+  filter: brightness(1.1);
+}
+.menu-settings {
+  display: block;
+  margin: 16px auto 0;
+  color: #c7e7ff;
+  background: transparent;
+  border: 0;
+  text-decoration: underline;
+}
+.has-platform-banner #entry {
+  padding-bottom: calc(120px + env(safe-area-inset-bottom));
+}
+body:has(#entry:not([style*="display: none"])) #hud,
+body.starting #hud {
+  visibility: hidden;
+}
+.menu .official {
+  position: relative;
+  width: 146px;
+  height: 53px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.menu .official img {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  inset: 0;
+}
+.menu .official span {
+  position: relative;
+  display: block;
+  width: 100%;
+  text-align: center;
+  color: white;
+  font-size: 19px;
+  font-weight: 900;
+  text-shadow: 0 2px 3px #38193a;
+}
+.menu .trails img {
+  clip-path: inset(0 round 25% / 45%);
+}
+.menu .gear img {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+  transition: transform 0.25s;
+}
+.menu .gear:hover img {
+  transform: rotate(25deg);
+}
+#levelCelebration {
+  pointer-events: none;
+  position: fixed;
+  z-index: 80;
+  left: 50%;
+  top: 19%;
+  width: min(420px, 80vw);
+  text-align: center;
+  animation: level-pop 1.65s both;
+}
+#levelCelebration img {
+  width: 100%;
+  filter: drop-shadow(0 0 18px #42bfff);
+}
+#levelCelebration strong {
+  display: block;
+  font-size: 24px;
+  color: white;
+  text-shadow: 0 2px 5px #163954;
+}
+.level-sparks {
+  color: #78dfff;
+  font-size: 36px;
+  letter-spacing: 20px;
+}
+#levelCelebration.reduced {
+  animation: level-fade 1.65s both;
+}
+@keyframes level-pop {
+  0% {
+    transform: translateX(-50%) scale(0.65);
+    opacity: 0;
+  }
+  10% {
+    transform: translateX(-50%) scale(1.1);
+    opacity: 1;
+  }
+  15%,
+  81% {
+    transform: translateX(-50%) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-50%) scale(1.08);
+    opacity: 0;
+  }
+}
+@keyframes level-fade {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateX(-50%);
+  }
+  15%,
+  81% {
+    opacity: 1;
+    transform: translateX(-50%);
+  }
+}
+@keyframes menu-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.rebirth-panel {
+  text-align: center;
+}
+.rebirth-panel > img {
+  width: min(280px, 80%);
+}
+.rebirth-panel dl {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  text-align: left;
+  background: #fff4d5;
+  padding: 20px;
+  border-radius: 16px;
+}
+.rebirth-panel dd {
+  margin: 0;
+  font-weight: 900;
+  text-align: right;
+}
+.rebirth-panel button {
+  padding: 14px 20px;
+  margin: 8px;
+  border-radius: 12px;
+  background: #ffda7d;
+  border: 1px solid #b5892e;
+}
+.rebirth-panel button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+#rewardOffers {
+  position: absolute;
+  right: 20px;
+  bottom: 115px;
+  display: flex;
+  flex-direction: column;
+  width: 155px;
+  pointer-events: auto;
+  gap: 7px;
+  text-align: center;
+}
+#rewardOffers button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+#rewardOffers img {
+  width: 100%;
+}
+#rewardOffers small {
+  font-size: 10px;
+  color: white;
+  text-shadow: 0 1px 3px #000;
+}
+#boostCountdown {
+  color: #aeffff;
+  font-weight: 900;
+}
+@media (max-width: 700px) {
+  #entry {
+    flex-direction: column;
+    justify-content: center;
+    gap: 10px;
+    overflow-y: auto;
+  }
+  .entry-art {
+    padding: 0;
+  }
+  .entry-art h1 {
+    font-size: 42px;
+    margin: 0;
+  }
+  .entry-art p,
+  .entry-art .tag,
+  .entry-art > small {
+    display: none;
+  }
+  .entry-card {
+    padding: 20px;
+  }
+  .entry-card h2 {
+    font-size: 26px;
+  }
+  .entry-card > p {
+    font-size: 13px;
+  }
+  .menu .official {
+    width: 92px;
+    height: 35px;
+  }
+  .menu .official span {
+    font-size: 13px;
+  }
+  .menu .gear img {
+    width: 30px;
+    height: 30px;
+  }
+  #rewardOffers {
+    width: 100px;
+    right: 8px;
+    bottom: 190px;
+  }
+  #levelCelebration {
+    top: 23%;
+  }
+  .menu {
+    gap: 6px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #entry,
+  #levelCelebration {
+    animation: none;
+  }
+  #levelCelebration {
+    transform: translateX(-50%);
+  }
+  #join,
+  .menu .gear img {
+    transition: none;
+  }
+}
+.reward-confirm {
+  max-width: min(420px, 90vw);
+  border: 2px solid #9ed9ef;
+  border-radius: 20px;
+  padding: 28px;
+  color: #173954;
+  background: #f1fbff;
+}
+.reward-confirm::backdrop {
+  background: #092438bb;
+}
+.reward-confirm button {
+  padding: 14px 20px;
+  margin: 6px;
+  border-radius: 12px;
+  background: #89edcb;
+}

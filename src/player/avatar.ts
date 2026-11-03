@@ -46,8 +46,13 @@ export function createAvatar(p: Player, showName = true) {
     pivot.position.set(side * 0.3, 1.3, 0);
     body.add(pivot);
     part(pivot, 0.43, 0.8, 0.44, 0, -0.4, 0, 0x314663);
-    part(pivot, 0.53, 0.28, 0.78, 0, -0.88, 0.13, 0xf6f1de);
-    part(pivot, 0.54, 0.08, 0.8, 0, -1, 0.13, color);
+    const knee = new T.Group();
+    knee.position.y = -0.58;
+    pivot.add(knee);
+    part(knee, 0.4, 0.35, 0.42, 0, -0.12, 0, 0x314663);
+    part(knee, 0.53, 0.28, 0.78, 0, -0.3, 0.13, 0xf6f1de);
+    part(knee, 0.54, 0.08, 0.8, 0, -0.42, 0.13, color);
+    pivot.userData.knee = knee;
     return pivot;
   });
   const arms = [-1, 1].map((side) => {
@@ -55,7 +60,12 @@ export function createAvatar(p: Player, showName = true) {
     pivot.position.set(side * 0.72, 2.22, 0);
     body.add(pivot);
     part(pivot, 0.4, 0.65, 0.45, 0, -0.25, 0, color);
-    part(pivot, 0.37, 0.34, 0.4, 0, -0.7, 0, 0xffd5ad);
+    const elbow = new T.Group();
+    elbow.position.y = -0.53;
+    pivot.add(elbow);
+    part(elbow, 0.34, 0.48, 0.36, 0, -0.19, 0.04, color);
+    part(elbow, 0.37, 0.25, 0.4, 0, -0.5, 0.04, 0xffd5ad);
+    pivot.userData.elbow = elbow;
     return pivot;
   });
   const name = label(p.name, "#ffffff", 3.3);
@@ -118,7 +128,10 @@ export function createAvatar(p: Player, showName = true) {
       previousPosition.copy(g.position);
       initialized = true;
       const grounded = Math.abs(state.verticalVelocity) < 0.01;
-      const velocity = actualSpeed(state);
+      const velocity = Math.min(
+        actualSpeed(state),
+        horizontal / Math.max(dt, 0.001),
+      );
       const moving = state.moving && horizontal > 0.0001;
       if (grounded && !prevGround) landing = 0.18;
       if (!grounded && prevGround) takeoff = 0.1;
@@ -138,20 +151,23 @@ export function createAvatar(p: Player, showName = true) {
                   ? "turning"
                   : !moving
                     ? "idle"
-                    : velocity < 3
-                      ? "walk"
-                      : velocity < 8
-                        ? "jog"
-                        : velocity < 18
-                          ? "sprint"
-                          : "high-speed";
+                    : velocity - previousSpeed > 0.5
+                      ? "acceleration"
+                      : velocity < 3
+                        ? "walk"
+                        : velocity < 8
+                          ? "jog"
+                          : velocity < 18
+                            ? "sprint"
+                            : "high-speed";
       previousSpeed = velocity;
       // One cycle per two strides; cap cadence by lengthening strides at high speed.
       const stride = 2.7 + Math.max(0, velocity - 9) * 0.14;
       if (grounded && moving && traveled < 8)
         phase += (horizontal / stride) * Math.PI * 2;
       intensity = damp(intensity, moving ? Math.min(1, velocity / 8) : 0, dt);
-      const swing = Math.sin(phase) * intensity * 0.75;
+      const swing =
+        Math.sin(phase) * intensity * (0.65 + Math.min(0.35, velocity / 80));
       for (let n = 0; n < 2; n++) {
         const sign = n === 0 ? 1 : -1;
         legs[n].rotation.x = damp(
@@ -159,6 +175,16 @@ export function createAvatar(p: Player, showName = true) {
           grounded ? sign * swing : n === 0 ? -0.5 : 0.35,
           dt,
         );
+        const knee = legs[n].userData.knee as T.Group;
+        knee.rotation.x = damp(
+          knee.rotation.x,
+          grounded
+            ? Math.max(0, -sign * Math.sin(phase)) * intensity * 0.85
+            : 0.5,
+          dt,
+        );
+        const elbow = arms[n].userData.elbow as T.Group;
+        elbow.rotation.x = damp(elbow.rotation.x, -0.15 - intensity * 0.95, dt);
         arms[n].rotation.x = damp(
           arms[n].rotation.x,
           grounded
@@ -179,8 +205,12 @@ export function createAvatar(p: Player, showName = true) {
         dt,
       );
       const lean =
-        animation === "braking" ? -0.08 : Math.min(0.22, velocity * 0.009);
+        animation === "braking"
+          ? -0.08
+          : intensity * Math.min(0.24, velocity * 0.009);
       body.rotation.x = damp(body.rotation.x, grounded ? lean : 0.05, dt);
+      head.rotation.x = damp(head.rotation.x, -body.rotation.x * 0.7, dt);
+      body.rotation.y = Math.sin(phase) * intensity * 0.045;
       body.rotation.z = damp(
         body.rotation.z,
         Math.max(-0.15, Math.min(0.15, -turn * 0.5)),

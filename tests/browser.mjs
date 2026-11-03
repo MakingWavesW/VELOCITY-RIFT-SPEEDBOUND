@@ -1,3 +1,4 @@
+import { enterMenu } from "./menu-helper.mjs";
 import { chromium } from "@playwright/test";
 import assert from "node:assert/strict";
 const browser = await chromium.launch({
@@ -27,7 +28,7 @@ try {
   for (let i = 0; i < 2; i++) {
     const p = pages[i];
     p.on("pageerror", (e) => errors.push(e.message));
-    await p.goto("http://localhost:5173");
+    await p.goto("http://localhost:5173"); await enterMenu(p);
     await p.locator("#name").fill(`Browser ${i + 1}`);
     await p.locator("#join").click();
     await p.locator("#entry").waitFor({ state: "hidden" });

@@ -1,8 +1,12 @@
 # VELOCITY RIFT: SPEEDBOUND
 An original multiplayer speed game by Vyrnora Studios, with an expanded island, smooth authoritative movement, and 77 collectible trails.
 
+## Cinematic integration
+
+The studio intro, official sunset menu and GUI artwork, synthesized audio, five-second trails, heroic running and persistent guest rebirths are implemented on this branch. See [integration status, save rules and platform limitations](docs/CINEMATIC-INTEGRATION.md). Rewarded offers remain unavailable until trusted server verification is configured.
+
 ## Run on Windows, macOS or Linux
-Install Node.js 22.12+ (validated with Node 24). Open a terminal in this directory:
+Install Node.js 24+ (SQLite guest profiles require Node 24). Open a terminal in this directory:
 
 ```sh
 npm ci
@@ -25,7 +29,7 @@ Desktop: WASD/arrows move, Space jumps, drag rotates the camera, wheel zooms, M 
 - Original humanoids with faces, shoes, backpacks, shoulder/hip animation, airborne poses, landing compression, idle breathing, and greeting/hoop celebrations.
 - Instanced buildings/props, instanced orbs and clouds, pooled pickup particles, shared materials, selective shadows, pixel-ratio limits, and Low/High graphics settings.
 - Locally bundled Lilita One and Nunito fonts. Responsive HUD with animated counters, XP, live roster, live-position island map, settings and help. No fictional race announcements or unavailable shop/pet buttons.
-- Personal day/night atmosphere, graphics quality, camera sensitivity and reduced-motion settings persist locally. They do not change server time or progression. Audio is not implemented, so there are no inactive audio sliders.
+- Personal day/night atmosphere, graphics quality, camera sensitivity and reduced-motion settings persist locally. They do not change server time or progression. Audio uses original synthesized music/effects with live saved volume controls.
 
 ## Orb-driven gameplay
 The world has **272 shared random orb slots across nine named routes**. The server chooses every location and tier, validates swept-distance pickups, grants rewards exactly once, and respawns orbs at a different valid position on their route. Clients render only received state. Blue is common, Purple is less common, and Red is rare; Gems remain available.
@@ -82,7 +86,7 @@ See [the movement and trails report](docs/MOVEMENT-TRAILS.md) and [the earlier o
 Client and backend deploy separately. `npm run build` produces the static browser client in `dist/`; it does not embed the Node server. Set `VITE_SERVER_URL=wss://your-backend.example` in `.env` **before** building. Serve the client over HTTPS and run `npm ci` followed by `npm run server` on a persistent Node host. `PORT` defaults to 2567; `/health` is the readiness route. Configure TLS, WebSocket upgrades and permitted origins at your reverse proxy. The TypeScript backend runner is a development dependency, so do not use `npm ci --omit=dev` with these commands. Hosting and bandwidth incur costs.
 
 ## Still unfinished
-Persistent PostgreSQL profiles, authenticated reconnect, accounts, parties/room codes, region selection, races/global rankings, pet inventories, permanent trail purchases/upgrades, rebirth, shops, quests, additional dimensions, audio, platform SDKs, production hardening and 20-player load testing. Buildings have solid walls; the skyline terrace and first tower roof are connected, but there is no island-wide rooftop network. Small decorative trees, lamps and benches do not block movement. No claim of Playgama certification, YouTube Playables compatibility, real-phone performance, or production readiness is made.
+PostgreSQL/shared-database profiles, account authentication, parties/room codes, region selection, races/global rankings, pet inventories, permanent trail purchases/upgrades, shops, reward-bearing quests, additional dimensions, hosted platform verification, production hardening and 20-player load testing. Buildings have solid walls; the skyline terrace and first tower roof are connected, but there is no island-wide rooftop network. Small decorative trees, lamps and benches do not block movement. No claim of Playgama certification, YouTube Playables compatibility, real-phone performance, or production readiness is made.
 
 ## Source layout
 - `shared/world.ts`: districts, buildings/solids, ramps, hoops, bounds and crossing geometry.

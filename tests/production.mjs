@@ -1,3 +1,4 @@
+import { enterMenu } from "./menu-helper.mjs";
 import { chromium } from "@playwright/test";
 import assert from "node:assert/strict";
 const browser = await chromium.launch({
@@ -23,7 +24,7 @@ try {
   );
   const p = await ctx.newPage();
   p.on("pageerror", (e) => errors.push(e.message));
-  await p.goto("http://localhost:4173");
+  await p.goto("http://localhost:4173"); await enterMenu(p);
   await p.locator("#name").fill("Coast Runner");
   await p.locator("#join").click();
   await p.locator("#entry").waitFor({ state: "hidden" });
@@ -72,7 +73,7 @@ try {
   );
   const m = await mobile.newPage();
   m.on("pageerror", (e) => errors.push(e.message));
-  await m.goto("http://localhost:4173");
+  await m.goto("http://localhost:4173"); await enterMenu(m);
   await m.locator("#name").fill("Mobile Runner");
   await m.locator("#join").click();
   await m.locator("#entry").waitFor({ state: "hidden" });

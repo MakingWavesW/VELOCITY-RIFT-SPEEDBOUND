@@ -1,3 +1,4 @@
+import { enterMenu } from "./menu-helper.mjs";
 import { chromium } from "@playwright/test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -31,7 +32,7 @@ try {
   for (const page of [p, q])
     page.on("pageerror", (e) => errors.push(e.message));
   console.log("loading entry");
-  await p.goto("http://localhost:5173");
+  await p.goto("http://localhost:5173"); await enterMenu(p);
   await p.evaluate(() => document.fonts.ready);
   await p.screenshot({ path: "artifacts/welcome.png" });
   console.log("joining players");
@@ -39,7 +40,7 @@ try {
     [p, "Astra"],
     [q, "Nova"],
   ]) {
-    if (page === q) await page.goto("http://localhost:5173");
+    if (page === q) await page.goto("http://localhost:5173"); await enterMenu(page);
     await page.locator("#name").fill(name);
     await page.locator("#join").click();
     await page.locator("#entry").waitFor({ state: "hidden" });
@@ -138,7 +139,7 @@ try {
   );
   const m = await mobile.newPage();
   m.on("pageerror", (e) => errors.push(e.message));
-  await m.goto("http://localhost:5173");
+  await m.goto("http://localhost:5173"); await enterMenu(m);
   await m.locator("#name").fill("Touch Runner");
   await m.locator("#join").click();
   await m.locator("#entry").waitFor({ state: "hidden" });
