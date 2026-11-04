@@ -663,7 +663,11 @@ function frame() {
   petRenderer.update(
     [...avatars]
       .filter(
-        ([, a]) => a.g.position.distanceToSquared(camera.position) < 120 * 120,
+        ([, a]) => {
+          const range = hud.settings.quality === "low" ? 55
+            : hud.settings.quality === "medium" ? 85 : 120;
+          return a.g.position.distanceToSquared(camera.position) < range * range;
+        },
       )
       .map(([id, a]) => ({
         id,
