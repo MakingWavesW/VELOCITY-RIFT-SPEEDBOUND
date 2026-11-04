@@ -25,6 +25,8 @@ export type Player = {
   launchRemaining?: number;
   launchVelocityX?: number;
   launchVelocityZ?: number;
+  parkourBest?: Record<string, number>;
+  parkourRewardAt?: Record<string, number>;
   rebirths?: number;
   pets?: Record<string, number>;
   equippedPetId?: string;
