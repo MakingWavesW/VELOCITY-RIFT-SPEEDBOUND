@@ -1,0 +1,70 @@
+{
+  "before-desktop": {
+    "medianFrameMs": 157.59999999403954,
+    "p95FrameMs": 305.2000000178814,
+    "drawCalls": 324,
+    "triangles": 80960,
+    "geometries": 17,
+    "textures": 9,
+    "heapBytes": 34600665,
+    "modelBytes": 0,
+    "readyMs": 763,
+    "glbRequests": 0
+  },
+  "before-mobile": {
+    "medianFrameMs": 102,
+    "p95FrameMs": 129.2000000178814,
+    "drawCalls": 194,
+    "triangles": 50282,
+    "geometries": 10,
+    "textures": 6,
+    "heapBytes": 31725853,
+    "modelBytes": 0,
+    "readyMs": 642,
+    "glbRequests": 0
+  },
+  "after-desktop": {
+    "medianFrameMs": 206.90000000596046,
+    "p95FrameMs": 378.09999999403954,
+    "drawCalls": 237,
+    "triangles": 110405,
+    "geometries": 69,
+    "textures": 12,
+    "heapBytes": 52369083,
+    "city": {
+      "loaded": 51,
+      "failed": [],
+      "pending": 0,
+      "visibleInstances": 948,
+      "selected": 63,
+      "quality": "high",
+      "sourceModels": 656,
+      "paletteParts": 1
+    },
+    "modelBytes": 3107218,
+    "readyMs": 2523,
+    "glbRequests": 51
+  },
+  "after-mobile": {
+    "medianFrameMs": 115.39999997615814,
+    "p95FrameMs": 297.40000000596046,
+    "drawCalls": 158,
+    "triangles": 41158,
+    "geometries": 46,
+    "textures": 8,
+    "heapBytes": 46101974,
+    "city": {
+      "loaded": 35,
+      "failed": [],
+      "pending": 0,
+      "visibleInstances": 150,
+      "selected": 63,
+      "quality": "low",
+      "sourceModels": 656,
+      "paletteParts": 1
+    },
+    "modelBytes": 2023682,
+    "readyMs": 1257,
+    "glbRequests": 35
+  }
+}

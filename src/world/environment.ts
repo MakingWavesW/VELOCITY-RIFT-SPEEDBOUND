@@ -1,3 +1,6 @@
+import { addLandscape } from "./landscape";
+import { createAmbient } from "./ambient";
+import { createGLBCity } from "./glbCity";
 import { daylight } from "../../shared/dayNight";
 import { CRYSTALS } from "../../shared/pets";
 import * as T from "three";
@@ -92,79 +95,31 @@ export function createWorld(scene: T.Scene) {
     animated.push(r);
   }
 
+  // Flat roof decks retain authoritative landing heights above the new facades.
   for (const s of solids) {
+    if (s.kind === "scenery") continue;
     if (s.kind === "platform") {
-      b.box(0x7084ab, s.x, s.h / 2, s.z, s.w, s.h, s.d);
-      b.box(0xd4e7ee, s.x, s.h + 0.03, s.z, s.w, 0.06, s.d);
-      continue;
+      b.box(0x536c99, s.x, s.h / 2, s.z, s.w, s.h, s.d);
+      b.box(0xbfddec, s.x, s.h - 0.03, s.z, s.w, 0.06, s.d);
+    } else {
+      b.box(0x42586f, s.x, s.h - 0.1, s.z, s.w, 0.2, s.d);
+      b.box(
+        0x8de7ed,
+        s.x,
+        s.h + 0.015,
+        s.z - s.d / 2 + 0.1,
+        s.w,
+        0.03,
+        0.12,
+        true,
+      );
     }
-    const color = [0x63bbdf, 0xdc93b9, 0xa49add, 0xeac269, 0x6cc6b2][s.style];
-    b.add(bevel, color, s.x, s.h / 2, s.z, s.w, s.h, s.d);
-    b.box(0x48657e, s.x, 0.5, s.z, s.w + 1, 1, s.d + 1);
-    b.add(bevel, 0x3f5773, s.x, s.h - 0.45, s.z, s.w + 1.5, 0.9, s.d + 1.5);
-    b.box(0xcde8eb, s.x, s.h - 0.06, s.z, s.w * 0.68, 0.12, s.d * 0.68);
-    b.box(0x244158, s.x, 1.8, s.z + s.d / 2 + 0.1, 3, 3.6, 0.3);
-    b.box(0xffdc9c, s.x, 3.8, s.z + s.d / 2 + 0.4, 4, 0.25, 1.5);
-    for (let y = 6; y < s.h - 1; y += 4.5)
-      for (let j = -1; j <= 1; j++) {
-        b.box(
-          0xc8f6ff,
-          s.x + j * s.w * 0.27,
-          y,
-          s.z + s.d / 2 + 0.1,
-          1.8,
-          2.5,
-          0.15,
-          true,
-        );
-        b.box(
-          0xffe7b5,
-          s.x + s.w / 2 + 0.1,
-          y,
-          s.z + j * s.d * 0.27,
-          0.15,
-          2.5,
-          1.8,
-          true,
-        );
-        b.box(
-          0xb9e6ff,
-          s.x - s.w / 2 - 0.1,
-          y,
-          s.z + j * s.d * 0.27,
-          0.15,
-          2.5,
-          1.8,
-          true,
-        );
-      }
   }
-  // A sequence of urban gardens frames the plaza rather than filling its running lanes.
+  // Existing planters and benches are retained; GLB planting supplies the canopy.
   for (const x of [-27, 27])
     for (const z of [-29, 29]) {
-      b.add(bevel, 0xe8d9bb, x, 0.45, z, 9, 0.9, 9);
-      tree(b, x, z, 2, 0.8);
+      b.add(bevel, 0xe8d9bb, x, 0.3, z, 9, 0.6, 9);
       bench(b, x, z + 6);
-      lamp(b, x + 6, z);
-    }
-  for (const side of [-1, 1])
-    for (let i = 0; i < 8; i++) {
-      tree(b, side * 23, -48 - i * 23, i % 2, 0.7);
-      lamp(b, side * 12, -50 - i * 30);
-    }
-  for (let i = 0; i < 10; i++) {
-    const z = -95 - i * 28;
-    tree(b, 173, z, i % 2, 0.85);
-    tree(b, 208, z, i % 2, 0.85);
-    lamp(b, 181, z);
-  }
-  for (let i = 0; i < 8; i++)
-    for (let j = 0; j < 7; j++) {
-      const x = -300 + i * 27,
-        z = 80 + j * 30;
-      if (Math.abs(z - 170) < 20) continue;
-      tree(b, x, z, (i + j) % 5, 0.8 + (i % 3) * 0.15);
-      if ((i + j) % 3 === 0) crystal(b, x + 7, z + 6, 3);
     }
   // Crystal ponds and flower beds.
   for (const [x, z] of [
@@ -174,23 +129,6 @@ export function createWorld(scene: T.Scene) {
     b.add(cylinder, 0xd2dcb7, x, 0.12, z, 15, 0.2, 11);
     b.add(cylinder, 0x5dc9d1, x, 0.26, z, 13, 0.12, 9);
     crystal(b, x, z, 7);
-  }
-  for (let i = 0; i < 90; i++) {
-    const a = i * 2.4,
-      r = 35 + (i % 4) * 8,
-      x = -210 + Math.sin(a) * r,
-      z = 170 + Math.cos(a) * r;
-    if (Math.abs(z - 170) < 15) continue;
-    b.add(
-      sphere,
-      [0xffc56e, 0xed95c2, 0xf2e1a5][i % 3],
-      x,
-      0.6,
-      z,
-      0.65,
-      0.65,
-      0.65,
-    );
   }
   // Coastal promenade, piers, beach huts and rocky shore.
   b.box(0xb99167, 0, 0.17, 390, 180, 0.3, 15);
@@ -202,12 +140,6 @@ export function createWorld(scene: T.Scene) {
       b.box(0x6f6c61, x - 5, -2, z, 0.8, 9, 0.8);
       b.box(0x6f6c61, x + 5, -2, z, 0.8, 9, 0.8);
     }
-  }
-  for (let i = 0; i < 6; i++) {
-    const x = -75 + i * 30;
-    b.add(bevel, [0xed97a2, 0x75c6d6, 0xf4cf85][i % 3], x, 2.5, 365, 12, 5, 9);
-    b.box(0xf8e7c7, x, 5, 365, 13, 0.6, 10);
-    b.box(0x476c82, x, 1.8, 370, 3, 3.6, 0.2);
   }
   for (let i = 0; i < 60; i++) {
     const side = i % 4,
@@ -359,7 +291,11 @@ export function createWorld(scene: T.Scene) {
     gate.position.set(0, 6, z);
     scene.add(gate);
   }
+  addLandscape(scene, b);
   b.finish(scene);
+  const city = createGLBCity(scene);
+  let comfort = false;
+  const particles = createAmbient(scene);
   const clouds = new T.InstancedMesh(sphere, material(0xf1f5ef), 78);
   const cloudTransform = new T.Object3D();
   for (let i = 0; i < 26; i++)
@@ -421,6 +357,27 @@ export function createWorld(scene: T.Scene) {
   return {
     rings,
     sun,
+    get diagnostics() {
+      return city.diagnostics;
+    },
+    setQuality(value: string, reduced: boolean) {
+      comfort = reduced;
+      const shadowSize = value === "high" ? 2048 : 1024;
+      if (sun.shadow.mapSize.x !== shadowSize) {
+        sun.shadow.map?.dispose();
+        sun.shadow.map = null;
+        sun.shadow.mapSize.set(shadowSize, shadowSize);
+      }
+      city.setQuality(
+        value === "low" || value === "medium" ? value : "high",
+        reduced,
+      );
+      particles.configure(value, reduced);
+    },
+    dispose() {
+      city.dispose();
+      particles.dispose();
+    },
     setCycle(value: boolean) {
       autoCycle = value;
     },
@@ -439,21 +396,26 @@ export function createWorld(scene: T.Scene) {
       night = T.MathUtils.lerp(night, desired, 1 - Math.exp(-dt * 2));
       (scene.background as T.Color).copy(skyDay).lerp(skyNight, night);
       if (autoCycle)
-        (scene.background as T.Color).lerp(skySunset, cycle.sunset * 0.3);
+        (scene.background as T.Color).lerp(skySunset, cycle.sunset * 0.62);
       hemi.color.copy(ambientDay).lerp(ambientNight, night);
       sun.color.copy(sunlight).lerp(moonlight, night);
       (scene.fog as T.Fog).color.copy(scene.background as T.Color);
-      hemi.intensity = 1.65 - night * 1.2;
-      sun.intensity = 2.4 - night * 2.15;
+      hemi.intensity = 1.8 - night * 1.05;
+      sun.intensity = 2.6 - night * 2.1;
       stars.visible = night > 0.5;
       sun.position.set(x + 80, 120, z + 50);
       sun.target.position.set(x, 0, z);
-      clouds.rotation.y = t * 0.001;
-      water.position.y = -7 + Math.sin(t * 0.5) * 0.15;
+      const ambientTime = comfort ? 0 : t;
+      city.update(t, dt, x, z, night);
+      particles.update(ambientTime, x, z, night);
+      clouds.rotation.y = ambientTime * 0.001;
+      water.position.y = -7 + Math.sin(ambientTime * 0.5) * 0.15;
+      (water.material as T.MeshStandardMaterial).roughness =
+        0.28 + Math.sin(ambientTime * 0.15) * 0.025;
       animated.forEach((o, i) => {
-        o.rotation.y = t * (0.3 + i * 0.1);
+        o.rotation.y = ambientTime * (0.3 + i * 0.1);
       });
-      rings.forEach((r) => (r.outer.rotation.z = t * 0.2));
+      rings.forEach((r) => (r.outer.rotation.z = ambientTime * 0.2));
     },
     cameraSolids: solids.filter((s) => s.kind === "building"),
   };

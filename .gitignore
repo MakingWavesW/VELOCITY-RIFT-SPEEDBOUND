@@ -6,3 +6,8 @@ dist/
 artifacts/
 
 .data/
+
+# Generated from assets/runtime-models.json
+public/models/city/
+public/models/nature/
+public/models/platforms/

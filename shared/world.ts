@@ -1,3 +1,4 @@
+import { cityDecor } from "./cityDecor.js";
 /** Authoritative layout: rendering and movement consume the same solids. */
 export const WORLD_HALF = 440;
 export const districts = [
@@ -52,7 +53,7 @@ export type Solid = {
   w: number;
   d: number;
   h: number;
-  kind: "building" | "platform";
+  kind: "building" | "platform" | "scenery";
   style: number;
 };
 export const solids: Solid[] = [];
@@ -229,3 +230,58 @@ solids.push({ x: 152, z: 105, w: 32, d: 5, h: 26, kind: "platform", style: 0 });
 solids.push({ x: 165, z: 121, w: 5, d: 32, h: 26, kind: "platform", style: 0 });
 solids.push({ x: 149, z: 135, w: 32, d: 5, h: 26, kind: "platform", style: 0 });
 solids.push({ x: 139, z: 122, w: 5, d: 26, h: 26, kind: "platform", style: 0 });
+
+// Explicit prop volumes; the existing building/platform array and heights above are unchanged.
+export const scenerySolids: Solid[] = cityDecor
+  .filter((p) => p.solid)
+  .map((p) => ({
+    x: p.x,
+    z: p.z,
+    w: p.solid!.w,
+    d: p.solid!.d,
+    h: p.solid!.h,
+    kind: "scenery",
+    style: 0,
+  }));
+solids.push(...scenerySolids);
+for (const x of [-27, 27])
+  for (const z of [-29, 29]) {
+    solids.push({ x, z, w: 9, d: 9, h: 0.6, kind: "scenery", style: 0 });
+    solids.push({
+      x,
+      z: z + 6,
+      w: 4,
+      d: 1.4,
+      h: 1.1,
+      kind: "scenery",
+      style: 0,
+    });
+  }
+for (const x of [-60, 60])
+  for (const side of [-1, 1])
+    solids.push({
+      x: x + side * 4.8,
+      z: 422,
+      w: 0.2,
+      d: 43,
+      h: 1,
+      kind: "scenery",
+      style: 0,
+    });
+// The shallow bridge decks span existing decorative ponds; two rails sit outside the deck lane.
+for (const [x, z] of [
+  [-201, 120],
+  [-251, 230],
+]) {
+  solids.push({ x, z, w: 7, d: 12, h: 0.23, kind: "scenery", style: 0 });
+  for (const side of [-1, 1])
+    solids.push({
+      x: x + side * 3.25,
+      z,
+      w: 0.5,
+      d: 12,
+      h: 0.9,
+      kind: "scenery",
+      style: 0,
+    });
+}

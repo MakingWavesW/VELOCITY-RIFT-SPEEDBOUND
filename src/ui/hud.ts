@@ -62,7 +62,10 @@ export function createHud() {
     settings = {
       night: saved.night === true,
       dayCycle: saved.dayCycle !== false,
-      quality: saved.quality === "low" ? "low" : "high",
+      quality:
+        saved.quality === "low" || saved.quality === "medium"
+          ? saved.quality
+          : "high",
       sensitivity: Math.max(0.3, Math.min(2, Number(saved.sensitivity) || 1)),
       comfort: saved.comfort === true,
       remoteTrails: saved.remoteTrails !== false,
@@ -134,7 +137,7 @@ export function createHud() {
     }
     if (name === "settings") {
       $("panelBody").innerHTML =
-        `<label class="setting">Automatic day/night cycle <input id="dayCycle" type="checkbox" ${settings.dayCycle ? "checked" : ""}></label><label class="setting">Night atmosphere <input id="night" type="checkbox" ${settings.night ? "checked" : ""}></label><p class="hint">A personal visual setting. Multiplayer time and rewards are unchanged.</p><label class="setting">Graphics <select id="quality"><option value="high">High · soft shadows</option><option value="low">Low · lighter rendering</option></select></label><label class="setting">Camera sensitivity <input id="sensitivity" type="range" min="0.3" max="2" step="0.1" value="${settings.sensitivity}"></label><label class="setting">Reduce motion & particles <input id="comfort" type="checkbox" ${settings.comfort ? "checked" : ""}></label><label class="setting">Show other players’ trails <input id="remoteTrails" type="checkbox" ${settings.remoteTrails ? "checked" : ""}></label>`;
+        `<label class="setting">Automatic day/night cycle <input id="dayCycle" type="checkbox" ${settings.dayCycle ? "checked" : ""}></label><label class="setting">Night atmosphere <input id="night" type="checkbox" ${settings.night ? "checked" : ""}></label><p class="hint">A personal visual setting. Multiplayer time and rewards are unchanged.</p><label class="setting">Graphics <select id="quality"><option value="high">High · soft shadows</option><option value="medium">Medium · balanced detail</option><option value="low">Low · lighter rendering</option></select></label><label class="setting">Camera sensitivity <input id="sensitivity" type="range" min="0.3" max="2" step="0.1" value="${settings.sensitivity}"></label><label class="setting">Reduce motion & particles <input id="comfort" type="checkbox" ${settings.comfort ? "checked" : ""}></label><label class="setting">Show other players’ trails <input id="remoteTrails" type="checkbox" ${settings.remoteTrails ? "checked" : ""}></label>`;
       $("panelBody").insertAdjacentHTML(
         "beforeend",
         `<label class="setting">Shadows<input id="shadows" type="checkbox" ${settings.shadows ? "checked" : ""}></label><label class="setting">Trail effects<input id="trailEffects" type="checkbox" ${settings.trailEffects ? "checked" : ""}></label>${(["master", "music", "sfx"] as const).map((key) => `<label class="setting">${key === "sfx" ? "SFX" : key[0].toUpperCase() + key.slice(1)} volume<input id="${key}" type="range" min="0" max="1" step=".05" value="${settings[key]}"></label>`).join("")}<label class="setting">Mute all<input id="muted" type="checkbox" ${settings.muted ? "checked" : ""}></label>`,

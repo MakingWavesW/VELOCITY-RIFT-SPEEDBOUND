@@ -68,10 +68,18 @@ const world = createWorld(scene),
   effects = createEffects(scene);
 function applySettings() {
   document.body.classList.toggle("reduced-motion", hud.settings.comfort);
+  world.setQuality(hud.settings.quality, hud.settings.comfort);
   world.setNight(hud.settings.night);
   world.setCycle(hud.settings.dayCycle);
   renderer.setPixelRatio(
-    Math.min(devicePixelRatio, hud.settings.quality === "low" ? 0.85 : 1.5),
+    Math.min(
+      devicePixelRatio,
+      hud.settings.quality === "low"
+        ? 0.85
+        : hud.settings.quality === "medium"
+          ? 1
+          : 1.5,
+    ),
   );
   renderer.shadowMap.enabled =
     hud.settings.shadows && hud.settings.quality !== "low";
@@ -758,6 +766,7 @@ if ((import.meta as unknown as { env: { DEV: boolean } }).env.DEV) {
   Object.defineProperty(window, "riftDiagnostics", {
     get: () => ({
       media: audio.diagnostics,
+      city: world.diagnostics,
       dayNight: daylight(
         lastSnapshot ? performance.now() + serverOffset : Date.now(),
       ),

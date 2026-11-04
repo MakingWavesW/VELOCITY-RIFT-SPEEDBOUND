@@ -1,0 +1,92 @@
+{
+  "desktop": {
+    "readyMsIncludingIntro": 21842,
+    "requests": 45,
+    "drawCalls": 211,
+    "triangles": 113027,
+    "frameMs": 617.8000000119209,
+    "city": {
+      "loaded": 42,
+      "failed": [],
+      "pending": 0,
+      "visibleInstances": 150,
+      "selected": 63,
+      "quality": "low",
+      "sourceModels": 656,
+      "paletteParts": 1
+    },
+    "modelBytes": 4104814
+  },
+  "mobile": {
+    "readyMsIncludingIntro": 14590,
+    "requests": 38,
+    "drawCalls": 135,
+    "triangles": 93222,
+    "frameMs": 121.40000000596046,
+    "city": {
+      "loaded": 35,
+      "failed": [],
+      "pending": 0,
+      "visibleInstances": 150,
+      "selected": 63,
+      "quality": "low",
+      "sourceModels": 656,
+      "paletteParts": 1
+    },
+    "modelBytes": 4026258
+  },
+  "fallback": {
+    "readyMsIncludingIntro": 13894,
+    "requests": 38,
+    "drawCalls": 108,
+    "triangles": 83542,
+    "frameMs": 266.19999998807907,
+    "city": {
+      "loaded": 0,
+      "failed": [
+        "city/roads/roads/road-roundabout.glb",
+        "city/roads/roads/traffic-light.glb",
+        "city/roads/roads/tile-low.glb",
+        "city/roads/roads/road-straight-half.glb",
+        "platforms/arrow.glb",
+        "city/roads/roads/road-straight.glb",
+        "city/roads/roads/road-sign-street.glb",
+        "city/commercial/commercial/building-a.glb",
+        "city/commercial/commercial/building-c.glb",
+        "city/commercial/commercial/building-e.glb",
+        "city/commercial/commercial/building-f.glb",
+        "city/roads/roads/light-curved.glb",
+        "city/commercial/commercial/building-b.glb",
+        "city/commercial/commercial/building-d.glb",
+        "city/commercial/commercial/building-h.glb",
+        "city/commercial/commercial/building-g.glb",
+        "city/commercial/commercial/building-i.glb",
+        "city/commercial/commercial/building-j.glb",
+        "nature/flower_yellowA.glb",
+        "nature/plant_bushSmall.glb",
+        "nature/plant_bushTriangle.glb",
+        "nature/plant_bushLarge.glb",
+        "nature/plant_bush.glb",
+        "nature/flower_redA.glb",
+        "nature/grass.glb",
+        "nature/flower_purpleA.glb",
+        "nature/tree_detailed.glb",
+        "nature/grass_large.glb",
+        "nature/tree_default.glb",
+        "nature/plant_flatShort.glb",
+        "nature/tree_oak.glb",
+        "city/roads/roads/road-curve.glb",
+        "city/roads/roads/road-crossroad.glb",
+        "nature/tree_small.glb",
+        "platforms/stones.glb"
+      ],
+      "pending": 0,
+      "visibleInstances": 0,
+      "selected": 63,
+      "quality": "low",
+      "sourceModels": 656,
+      "paletteParts": 0
+    },
+    "modelBytes": 2002576
+  }
+}

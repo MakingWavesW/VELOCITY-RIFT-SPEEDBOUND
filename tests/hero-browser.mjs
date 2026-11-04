@@ -27,7 +27,8 @@ try {
     requests = [];
   p.on("pageerror", (e) => errors.push(e.message));
   p.on("request", (r) => {
-    if (r.url().endsWith(".glb")) requests.push(r.url());
+    if (r.url().includes("/models/hero/") && r.url().endsWith(".glb"))
+      requests.push(r.url());
   });
   p.on("console", (m) => {
     if (

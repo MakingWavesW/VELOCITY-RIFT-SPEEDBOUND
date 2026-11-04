@@ -32,19 +32,42 @@ try {
   }, fixture.token);
   const p = await ctx.newPage();
   p.on("pageerror", (e) => errors.push(e.message));
-  await p.goto("http://localhost:5173");
+  await p.goto("http://localhost:5173", { waitUntil: "domcontentloaded" });
   await enterMenu(p);
   await p.locator("#name").fill("Crystal test");
   await p.locator("#join").click();
   await p.waitForFunction(() => window.riftDiagnostics?.predicted);
   const population = await p.evaluate(() => window.riftDiagnostics.orbs.length);
   assert.ok(population >= 50 && population <= 100);
-  await p.keyboard.down("d");
-  await p.waitForTimeout(1800);
-  await p.keyboard.up("d");
-  await p.keyboard.down("s");
-  await p.waitForTimeout(1500);
-  await p.keyboard.up("s");
+  // Steer from authoritative position rather than assuming rendering/timer speed.
+  const held = new Set();
+  for (let i = 0; i < 160; i++) {
+    const state = await p.evaluate(
+      () => window.riftDiagnostics.players[window.riftDiagnostics.localId],
+    );
+    const dx = 18 - state.x,
+      dz = 16 - state.z;
+    const next =
+      Math.hypot(dx, dz) < 2
+        ? []
+        : [
+            ...(Math.abs(dx) > 0.8 ? [dx > 0 ? "d" : "a"] : []),
+            ...(Math.abs(dz) > 0.8 ? [dz > 0 ? "s" : "w"] : []),
+          ];
+    for (const key of held)
+      if (!next.includes(key)) {
+        await p.keyboard.up(key);
+        held.delete(key);
+      }
+    for (const key of next)
+      if (!held.has(key)) {
+        await p.keyboard.down(key);
+        held.add(key);
+      }
+    if (!next.length) break;
+    await p.waitForTimeout(80);
+  }
+  for (const key of held) await p.keyboard.up(key);
   await p.locator("#crystalInteract").waitFor({ state: "visible" });
   await p.locator("#crystalInteract").click();
   assert.equal(await p.locator(".crystal-chances article").count(), 6);
@@ -95,6 +118,7 @@ try {
   assert.equal(await p.locator("[data-boost]:disabled").count(), 3);
   await p.locator(".no-thanks").click();
   await p.locator("#boostCenter").waitFor({ state: "hidden" });
+  await ctx.close();
   const mobile = await browser.newContext({
     viewport: { width: 390, height: 844 },
     isMobile: true,
@@ -109,7 +133,7 @@ try {
   );
   const m = await mobile.newPage();
   m.on("pageerror", (e) => errors.push(e.message));
-  await m.goto("http://localhost:5173");
+  await m.goto("http://localhost:5173", { waitUntil: "domcontentloaded" });
   await enterMenu(m);
   await m.locator("#name").fill("Touch City");
   await m.locator("#join").click();

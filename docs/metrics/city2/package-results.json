@@ -1,0 +1,12 @@
+{
+  "stage1": {
+    "zipBytes": 15361501,
+    "expandedBytes": 18669252,
+    "glbs": 3
+  },
+  "stage2": {
+    "zipBytes": 16009266,
+    "expandedBytes": 22782334,
+    "glbs": 66
+  }
+}
