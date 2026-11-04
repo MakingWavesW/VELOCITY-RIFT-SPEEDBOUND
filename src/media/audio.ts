@@ -28,6 +28,37 @@ export class GameAudio {
   private last = new Map<string, number>();
   private duckUntil = 0;
   private voices = new Set<OscillatorNode>();
+  private recordedMusic?: HTMLAudioElement;
+  private levelSample?: HTMLAudioElement;
+  private recordedMusicReady = false;
+  private levelSampleReady = false;
+  private recordingsInitialized = false;
+  /** Optional, licensed files in public/media. Procedural audio remains fallback. */
+  private prepareRecordings() {
+    if (this.recordingsInitialized) return;
+    this.recordingsInitialized = true;
+    const music = new Audio("/media/city-music.mp3");
+    music.preload = "metadata";
+    music.loop = true;
+    music.addEventListener("canplay", () => {
+      this.recordedMusicReady = true;
+      this.sync();
+    }, { once: true });
+    music.addEventListener("error", () => {
+      this.recordedMusicReady = false;
+      if (this.recordedMusic === music) this.recordedMusic = undefined;
+      this.sync();
+    }, { once: true });
+    this.recordedMusic = music;
+    const level = new Audio("/media/level-up-sfx.mp3");
+    level.preload = "auto";
+    level.addEventListener("canplay", () => { this.levelSampleReady = true; }, { once: true });
+    level.addEventListener("error", () => {
+      this.levelSampleReady = false;
+      if (this.levelSample === level) this.levelSample = undefined;
+    }, { once: true });
+    this.levelSample = level;
+  }
   async unlock() {
     this.context ||= new AudioContext();
     if (!this.master) {
@@ -37,6 +68,7 @@ export class GameAudio {
       this.music.connect(this.master);
     }
     await this.context.resume();
+    this.prepareRecordings();
     this.sync();
   }
   setState(state: MediaState) {
@@ -51,6 +83,16 @@ export class GameAudio {
     if (!this.context || !this.master || !this.music) return;
     const t = this.context.currentTime;
     const active = this.state === "GAMEPLAY" && !this.preferences.muted;
+    if (this.recordedMusic) {
+      const loudness = Math.max(0, Math.min(1,
+        this.preferences.master * this.preferences.music * (performance.now() < this.duckUntil ? 0.25 : 1)));
+      this.recordedMusic.volume = active && this.recordedMusicReady ? loudness : 0;
+      if (active && this.recordedMusicReady) {
+        if (this.recordedMusic.paused) void this.recordedMusic.play().catch(() => {});
+      } else if (!this.recordedMusic.paused) {
+        this.recordedMusic.pause();
+      }
+    }
     this.master.gain.setTargetAtTime(
       active ? this.preferences.master : 0,
       t,
@@ -61,10 +103,10 @@ export class GameAudio {
       t,
       0.25,
     );
-    if (active && !this.timer) {
+    if (active && !this.recordedMusicReady && !this.timer) {
       this.beat = 0;
       this.timer = setInterval(() => this.sequence(), 250);
-    } else if (!active) {
+    } else if (!active || this.recordedMusicReady) {
       clearInterval(this.timer);
       this.timer = undefined;
       for (const voice of this.voices) {
@@ -136,6 +178,16 @@ export class GameAudio {
       cooldown = kind === "level" ? 1650 : kind === "pickup" ? 90 : 180;
     if (now - (this.last.get(kind) ?? -Infinity) < cooldown) return;
     this.last.set(kind, now);
+    if (kind === "level" && this.levelSampleReady && this.levelSample) {
+      this.levelSample.volume = Math.max(0, Math.min(1,
+        this.preferences.master * this.preferences.sfx));
+      this.levelSample.pause();
+      this.levelSample.currentTime = 0;
+      void this.levelSample.play().catch(() => {});
+      this.duckUntil = now + 1500;
+      this.sync();
+      return;
+    }
     const notes: Record<typeof kind, number[]> = {
       pickup: [880, 1320],
       gem: [1046, 1568],
@@ -162,7 +214,9 @@ export class GameAudio {
   get diagnostics() {
     return {
       state: this.state,
-      musicChannels: this.timer ? 1 : 0,
+      musicChannels: this.recordedMusicReady && this.state === "GAMEPLAY" ? 1 : this.timer ? 1 : 0,
+      recordedMusic: this.recordedMusicReady,
+      recordedLevel: this.levelSampleReady,
       voices: this.voices.size,
     };
   }
