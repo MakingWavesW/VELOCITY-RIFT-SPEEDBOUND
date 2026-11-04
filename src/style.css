@@ -2689,3 +2689,20 @@ body:not([data-media-state="GAMEPLAY"]) .settings-launcher {
   visibility: hidden !important;
   pointer-events: none !important;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .compact-game-icon,
+  .compact-game-icon:hover,
+  .compact-game-icon:active {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}
+body.reduced-motion .compact-game-icon,
+body.reduced-motion .compact-game-icon:hover,
+body.reduced-motion .compact-game-icon:active {
+  animation: none !important;
+  transition: none !important;
+  transform: none !important;
+}
