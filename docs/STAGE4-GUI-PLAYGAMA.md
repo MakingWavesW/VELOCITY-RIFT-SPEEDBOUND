@@ -70,3 +70,24 @@ The build stages exactly the runtime GLBs using existing Stage 2 tooling. A Stag
 5. **Platform/device testing**: Test real Playgama hosting, banner fill/no-fill, rewarded callback/verification, pausing/resuming, mobile landscape, and both connected players.
 
 No fictitious SDK approval, live ads, or deployed multiplayer backend has been claimed.
+
+## Playgama release build guard
+
+To create a public host build, first deploy your own always-on Colyseus server to a reachable HTTPS/WSS host. Then provide its secure URL to Vite during build:
+
+On Windows Command Prompt:
+
+```bat
+set VITE_SERVER_URL=wss://YOUR-REAL-SERVER-HOST
+npm run build:playgama
+```
+
+On macOS/Linux:
+
+```sh
+VITE_SERVER_URL=wss://YOUR-REAL-SERVER-HOST npm run build:playgama
+```
+
+The `build:playgama` script rejects missing, localhost or insecure websocket URLs. `dist/` is the frontend to package for Playgama; the backend remains a **separate** Node.js service. These example hostnames are placeholders and are not a deployment claim.
+
+Check Playgama's current build-upload limits and game dashboard settings before uploading. Never put server secrets into Vite environment variables (they are baked into client code).
