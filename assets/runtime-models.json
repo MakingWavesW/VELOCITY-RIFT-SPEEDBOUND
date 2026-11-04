@@ -74,5 +74,19 @@
     "hero/kaykit-adventurers/Ranger.glb",
     "hero/kaykit-animations/rig-medium/Rig_Medium_MovementBasic.glb",
     "hero/kaykit-animations/rig-medium/Rig_Medium_General.glb"
+  ],
+  "pets": [
+    "pets/animal-chick.glb",
+    "pets/animal-bee.glb",
+    "pets/animal-cat.glb",
+    "pets/animal-lion.glb",
+    "pets/animal-fish.glb",
+    "pets/animal-fox.glb",
+    "pets/animal-bunny.glb",
+    "pets/animal-parrot.glb",
+    "pets/animal-tiger.glb",
+    "pets/animal-penguin.glb",
+    "pets/animal-eagle.glb",
+    "pets/animal-caterpillar.glb"
   ]
 }
