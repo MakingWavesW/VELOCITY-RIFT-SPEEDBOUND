@@ -1,5 +1,6 @@
 import { createRewardHub } from "./ui/rewardHub";
 import { createParkourUI } from "./ui/parkour";
+import { installIconChrome } from "./ui/iconChrome";
 import { installDialogMotion } from "./ui/motion";
 import { createCompanions } from "./ui/companions";
 import { createPetRenderer } from "./world/pets";
@@ -59,6 +60,7 @@ const companions = createCompanions((type, value) => {
   else hud.toast("Join a world first.");
 });
 const timedOffer = createTimedOffer((kind) => hud.onRewardRequest(kind));
+installIconChrome();
 const journeyUI = createJourneyUI();
 journeyUI.onComplete = () => audio.effect("quest");
 const scene = new T.Scene();
