@@ -40,21 +40,24 @@ test("buildings block movement, and wall sliding remains possible", () => {
   assert.ok(p.x < b.x - b.w / 2 - 0.5);
   assert.ok(p.z > b.z);
 });
-test("real directional ramps launch through the Solar, Azure and Violet hoops", () => {
+test("real ramps fly through Solar, Azure and Violet at beginner and advanced levels", () => {
   for (const r of ramps.filter((r) => r.targetHoopId !== undefined)) {
     const h = hoops.find((h) => h.id === r.targetHoopId)!;
-    const p = player(r.x, r.z + r.d / 2 + 3);
-    p.y = r.baseY;
-    let launched = false, crossed = false;
-    for (let seq = 0; seq < 120; seq++) {
-      const previous = { x: p.x, y: p.y, z: p.z };
-      move(p, { seq, x: 0, z: -1, jump: false });
-      launched ||= (p.launchRemaining || 0) > 0;
-      crossed ||= crossesHoop(h, previous, p);
-      if (crossed) break;
+    for (const level of [1, 10, 40]) {
+      const p = player(r.x, r.z + r.d / 2 + 3);
+      p.level = level;
+      p.y = r.baseY;
+      let launched = false, crossed = false;
+      for (let seq = 0; seq < 150; seq++) {
+        const previous = { x: p.x, y: p.y, z: p.z };
+        move(p, { seq, x: 0, z: -1, jump: false });
+        launched ||= (p.launchRemaining || 0) > 0;
+        crossed ||= crossesHoop(h, previous, p);
+        if (crossed) break;
+      }
+      assert.ok(launched, r.id + ": launch at Level " + level);
+      assert.ok(crossed, r.id + ": hoop crossing at Level " + level);
     }
-    assert.ok(launched, r.id + ": ramp must activate");
-    assert.ok(crossed, r.id + ": player must physically cross hoop opening");
   }
 });
 test("ramp entry rejects sideways running and standing inside", () => {
