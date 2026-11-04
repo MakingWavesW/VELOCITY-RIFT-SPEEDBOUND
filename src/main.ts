@@ -1,4 +1,5 @@
 import { createRewardHub } from "./ui/rewardHub";
+import { createParkourUI } from "./ui/parkour";
 import { installDialogMotion } from "./ui/motion";
 import { createCompanions } from "./ui/companions";
 import { createPetRenderer } from "./world/pets";
@@ -45,6 +46,14 @@ const rewardHub = createRewardHub(
   (text) => hud.toast(text),
 );
 rewardHub.show(false);
+const parkourUI = createParkourUI(
+  (type, value) => {
+    if (connected) room?.send(type, value);
+    else hud.toast("Join a world first.");
+  },
+  (text) => hud.toast(text),
+);
+parkourUI.show(false);
 const companions = createCompanions((type, value) => {
   if (connected) room?.send(type, value);
   else hud.toast("Join a world first.");
@@ -260,6 +269,7 @@ $("join").onclick = async () => {
     room.onMessage("engagement", (v) => rewardHub.update(v));
     room.onMessage("engagementResult", (v) => rewardHub.result(v));
     room.send("engagement");
+    room.onMessage("parkour", (event) => parkourUI.update(event));
     room.send("rewardOffer");
     room.onMessage("progression", (v: { ok: boolean; message: string }) => {
       hud.toast(v.message);
@@ -334,6 +344,7 @@ $("join").onclick = async () => {
     journeyUI.reset();
     journeyUI.show();
     rewardHub.show(true);
+    parkourUI.show(true);
     clearInput();
     $("entry").style.display = "none";
     renderer.domElement.tabIndex = 0;
@@ -472,6 +483,7 @@ $("join").onclick = async () => {
       rewardBusy = false;
       celebration.reset();
       rewardHub.show(false);
+      parkourUI.show(false);
       companions.reset();
       timedOffer.reset();
       setMediaState("MAIN_MENU");
