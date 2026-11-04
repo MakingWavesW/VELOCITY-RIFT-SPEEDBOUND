@@ -2552,6 +2552,7 @@ body.reduced-motion .crystal-result {
   filter: drop-shadow(0 3px 4px #1028476e);
   transition: transform 160ms ease, filter 160ms ease !important;
   -webkit-tap-highlight-color: transparent;
+  pointer-events: auto !important;
   isolation: isolate;
 }
 .compact-game-icon img,
