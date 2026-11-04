@@ -2417,3 +2417,77 @@ body.reduced-motion .crystal-result {
     padding: 3px;
   }
 }
+
+
+/* Stage 3 Skybound: compact opt-in course UI, clear on both touch and desktop. */
+#parkourButton[hidden],
+#parkourTracker[hidden] { display: none !important; }
+#parkourMenu {
+  width: min(700px, 94vw);
+  max-height: min(86dvh, 780px);
+  overflow-y: auto;
+  background: #122d48;
+  color: #f1f9ff;
+  padding: clamp(14px, 3vw, 25px);
+  border: 2px solid #80dfff;
+  border-radius: 18px;
+  box-shadow: 0 15px 45px #0a1b3699, 0 0 35px #6ed1ff44;
+}
+#parkourMenu .panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+#parkourMenu .panel-head h2 { margin: 0; font-size: clamp(18px, 3vw, 27px); }
+#parkourMenu .panel-head button {
+  background: #ffd47f;
+  color: #18364b;
+  border: 0;
+  border-radius: 10px;
+  padding: 8px 13px;
+  font-size: 21px;
+}
+#parkourCourses { display: grid; grid-template-columns: repeat(auto-fit,minmax(190px,1fr)); gap: 12px; }
+.parkour-card {
+  border: 1px solid #6fbce5;
+  border-radius: 14px;
+  background: linear-gradient(135deg,#285276,#244063);
+  padding: 15px;
+}
+.parkour-card h3 { margin: 0 0 8px; color: #ffe8a1; }
+.parkour-card p { font-size: 13px; line-height: 1.45; }
+.parkour-card small { display: block; color: #c5ecff; margin-bottom: 12px; }
+.parkour-card button, #parkourCancel {
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #d4fbff;
+  background: #96edfb;
+  color: #12324a;
+  font-weight: 800;
+  min-height: 42px;
+}
+#parkourTracker {
+  position: fixed;
+  top: 115px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(380px, 62vw);
+  text-align: center;
+  display: grid;
+  gap: 5px;
+  z-index: 6;
+  border: 1px solid #a1eeff;
+  border-radius: 14px;
+  background: #123653e9;
+  box-shadow: 0 10px 25px #1022357a;
+  padding: 10px 16px;
+  color: #ffffff;
+}
+#parkourTracker b { color: #ffe4a1; }
+#parkourTracker small { color: #bde8ff; }
+#parkourTracker button { justify-self: center; padding: 6px 12px; min-height: 32px; }
+@media (max-width: 650px) {
+  #parkourTracker { top: 132px; width: min(260px, 62vw); padding: 6px 9px; font-size: 11px; }
+  #parkourCourses { grid-template-columns: 1fr; }
+}
