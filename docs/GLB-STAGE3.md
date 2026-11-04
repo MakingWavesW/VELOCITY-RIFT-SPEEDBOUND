@@ -38,7 +38,7 @@ npx tsx tests/v5-browser.mjs
 
 A repository workflow was added to check builds and network tests on this branch. At time of authoring, GitHub Actions executions were queued, not completed: this is **not a claim that Stage 3 tests passed**.
 
-A separate numeric-only flight calculation using gravity 26 and dt 0.04 gave Solar/Azure/Violet ring crossing vertical offsets within ~0.5 world units of their centers. It excludes terrain/collision and is **not a real gameplay pass**. Real multiplayer ramp tests and mobile QA remain required.
+An isolated JavaScript execution of the checked-in shared `move`, `groundAt`, `blocked` and `crossesHoop` implementations (TypeScript types stripped for this harness) passed **9/9 directional launch crossings**: Solar, Azure and Violet at Levels 1, 10 and 40. The harness includes the existing core building/platform solids but excludes the later Stage 2 decorative scenery volumes and real browser/server networking. The near-center crossing offsets were approximately 0.15–0.84 units (inside the ring radii). The updated `tests/world.test.ts` codifies the same nine levels/routes. **This is not a production build or real gameplay acceptance test.**
 
 ## Next review actions
 
