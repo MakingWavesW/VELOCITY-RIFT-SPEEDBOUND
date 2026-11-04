@@ -4,13 +4,15 @@ let desired: MediaState = "PLATFORM_STARTUP",
   paused = false,
   platformAudio = true;
 let introVideo: HTMLVideoElement | undefined;
+const portraitTouch = () =>
+  matchMedia("(orientation: portrait) and (pointer: coarse)").matches;
 function sync() {
   audio.setState(
-    paused || document.hidden || !platformAudio ? "PAUSED" : desired,
+    paused || document.hidden || !platformAudio || portraitTouch() ? "PAUSED" : desired,
   );
   if (introVideo) {
     introVideo.muted = introVideo.dataset.silent === "true" || !platformAudio;
-    if (paused || document.hidden) introVideo.pause();
+    if (paused || document.hidden || portraitTouch()) introVideo.pause();
     else if (desired === "STUDIO_INTRO" && introVideo.dataset.started)
       void introVideo.play().catch(() => {});
   }
@@ -24,9 +26,11 @@ export function setMediaState(state: MediaState) {
   platform.banner(state === "MAIN_MENU");
 }
 export function inputPaused() {
-  return paused || document.hidden || desired !== "GAMEPLAY";
+  return paused || document.hidden || portraitTouch() || desired !== "GAMEPLAY";
 }
 document.addEventListener("visibilitychange", sync);
+addEventListener("resize", sync);
+addEventListener("orientationchange", sync);
 export async function startup() {
   const layer = document.createElement("div");
   layer.id = "studioIntro";
