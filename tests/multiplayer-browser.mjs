@@ -5,6 +5,7 @@ import fs from "node:fs/promises";
 import { WebSocketServer, WebSocket } from "ws";
 const out = "artifacts/trails";
 await fs.mkdir(out, { recursive: true });
+await fs.mkdir("artifacts/hero", { recursive: true });
 const browser = await chromium.launch({
   executablePath: "/usr/bin/chromium",
   args: [
@@ -116,6 +117,12 @@ try {
   await a.p.waitForFunction(
     () => Object.keys(window.riftDiagnostics.players).length === 2,
   );
+  for (const page of [a.p, b.p])
+    await page.waitForFunction(
+      () =>
+        window.riftDiagnostics.avatars.length === 2 &&
+        window.riftDiagnostics.avatars.every((a) => a.heroStatus === "ready"),
+    );
   await a.p.bringToFront();
   await a.p.locator("body > canvas").click({ position: { x: 400, y: 300 } });
   const held = new Set();
@@ -183,6 +190,10 @@ try {
   await a.p.bringToFront();
   await a.p.locator("body > canvas").click({ position: { x: 400, y: 300 } });
   await keys(["w"]);
+  await b.p.waitForFunction((id) => {
+    const a = window.riftDiagnostics.avatars.find((a) => a.id === id);
+    return a?.heroStatus === "ready" && /^Running_/.test(a.heroClip);
+  }, id);
   for (let n = 0; n < 35; n++) {
     await sample(a.p, "delayed");
     if (n === 12) {
@@ -198,6 +209,16 @@ try {
         id,
       );
       assert.equal(remote.trail, "basic-red-trail");
+      assert.equal(remote.heroStatus, "ready");
+      await b.p.waitForFunction(
+        (id) =>
+          /^Jump_/.test(
+            window.riftDiagnostics.avatars.find((a) => a.id === id)?.heroClip ||
+              "",
+          ),
+        id,
+      );
+      await b.p.screenshot({ path: "artifacts/hero/multiplayer-jump.png" });
       assert.ok(
         remote.trailStats.segments > 0,
         "remote trail follows moving avatar",

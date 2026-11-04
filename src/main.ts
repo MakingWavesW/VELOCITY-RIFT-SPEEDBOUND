@@ -587,7 +587,10 @@ function frame() {
       visible.y += correction.y;
       visible.z += correction.z;
     }
-    a.animate(visible, t, dt);
+    a.animate(visible, t, dt, {
+      distance: isLocal ? 0 : a.g.position.distanceTo(camera.position),
+      low: hud.settings.quality === "low",
+    });
     let trail = trails.get(id);
     if (!trail) {
       trail = {
@@ -780,6 +783,8 @@ if ((import.meta as unknown as { env: { DEV: boolean } }).env.DEV) {
         y: a.g.position.y,
         z: a.g.position.z,
         animation: a.animation,
+        heroStatus: a.heroStatus,
+        heroClip: a.heroClip,
         trail: trails.get(id)?.effect.id,
         trailStats: trails.get(id)?.effect.stats,
       })),

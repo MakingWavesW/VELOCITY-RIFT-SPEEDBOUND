@@ -1,7 +1,8 @@
+import type { createHero, CLIPS } from "../assets/hero";
 import * as T from "three";
 import { bevel, material, label } from "../world/models";
 import { actualSpeed, angleDelta, type Player } from "../../shared/game";
-export function createAvatar(p: Player, showName = true) {
+function createProceduralAvatar(p: Player, showName = true) {
   const g = new T.Group(),
     body = new T.Group();
   g.add(body);
@@ -102,6 +103,9 @@ export function createAvatar(p: Player, showName = true) {
     get animation() {
       return animation;
     },
+    get velocity() {
+      return previousSpeed;
+    },
     get resetVersion() {
       return resetVersion;
     },
@@ -110,7 +114,7 @@ export function createAvatar(p: Player, showName = true) {
       phase = 0;
       resetVersion++;
     },
-    animate(state: Player, t: number, dt: number) {
+    animate(state: Player, t: number, dt: number, visual = true) {
       const traveled = initialized
         ? Math.hypot(
             state.x - previousPosition.x,
@@ -161,6 +165,8 @@ export function createAvatar(p: Player, showName = true) {
                             ? "sprint"
                             : "high-speed";
       previousSpeed = velocity;
+      shadow.visible = grounded;
+      if (!visual) return;
       // One cycle per two strides; cap cadence by lengthening strides at high speed.
       const stride = 2.7 + Math.max(0, velocity - 9) * 0.14;
       if (grounded && moving && traveled < 8)
@@ -234,6 +240,80 @@ export function createAvatar(p: Player, showName = true) {
       shadow.geometry.dispose();
       shadow.material.dispose();
       g.removeFromParent();
+    },
+  };
+}
+
+export function createAvatar(p: Player, showName = true) {
+  const fallback = createProceduralAvatar(p, showName),
+    g = fallback.g;
+  let hero: Awaited<ReturnType<typeof createHero>> | undefined,
+    disposed = false,
+    status = "loading";
+  void import("../assets/hero")
+    .then(({ createHero }) => createHero())
+    .then((value) => {
+      if (disposed) {
+        value.dispose();
+        return;
+      }
+      hero = value;
+      g.add(value.container);
+      g.children[0].visible = false;
+      status = "ready";
+    })
+    .catch((error) => {
+      status = "fallback";
+      console.warn("Hero unavailable; using procedural avatar.", error);
+    });
+  return {
+    g,
+    get animation() {
+      return fallback.animation;
+    },
+    get resetVersion() {
+      return fallback.resetVersion;
+    },
+    get heroStatus() {
+      return status;
+    },
+    get heroClip() {
+      return hero?.clip;
+    },
+    resetMotion() {
+      fallback.resetMotion();
+      hero?.reset();
+    },
+    animate(
+      state: Player,
+      t: number,
+      dt: number,
+      options?: { distance: number; low: boolean },
+    ) {
+      fallback.animate(state, t, dt, !hero);
+      if (hero) {
+        const cadence =
+          options && options.distance > 60
+            ? options.low
+              ? 1 / 12
+              : 1 / 20
+            : 0;
+        hero.update(
+          fallback.animation as keyof typeof CLIPS,
+          fallback.velocity,
+          dt,
+          cadence,
+        );
+      }
+    },
+    wave(t: number) {
+      fallback.wave(t);
+      hero?.wave();
+    },
+    dispose() {
+      disposed = true;
+      hero?.dispose();
+      fallback.dispose();
     },
   };
 }
