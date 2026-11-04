@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 const browser = await chromium.launch({
   headless: true,
-  args: ["--disable-gpu", "--no-sandbox"],
+  args: ["--no-sandbox", "--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
 });
 try {
   const desktop = await browser.newPage({ viewport: { width: 1280, height: 720 } });
