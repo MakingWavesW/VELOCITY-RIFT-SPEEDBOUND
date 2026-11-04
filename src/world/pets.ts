@@ -132,7 +132,7 @@ export const PET_MODEL_FILES: Record<string, string> = {
   "ember-owl": "animal-parrot.glb",
   "prism-lynx": "animal-tiger.glb",
   "lunar-wisp": "animal-penguin.glb",
-  "solar-griffin": "animal-eagle.glb",
+  "solar-griffin": "animal-parrot.glb",
   "rift-dragon": "animal-caterpillar.glb",
 };
 type PetView = {
