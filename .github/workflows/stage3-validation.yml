@@ -5,6 +5,10 @@ on:
     branches: [feature/glb-pets-ramps-stage3]
   workflow_dispatch:
 
+concurrency:
+  group: stage3-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
