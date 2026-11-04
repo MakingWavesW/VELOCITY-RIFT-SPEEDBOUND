@@ -68,7 +68,8 @@
     "platforms/flag.glb",
     "platforms/platform-fortified.glb",
     "platforms/stones.glb",
-    "platforms/jewel.glb"
+    "platforms/jewel.glb",
+    "platforms/block-grass-large-slope.glb"
   ],
   "hero": [
     "hero/kaykit-adventurers/Ranger.glb",
