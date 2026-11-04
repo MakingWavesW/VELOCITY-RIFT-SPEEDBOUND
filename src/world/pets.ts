@@ -258,6 +258,7 @@ export function createPetRenderer(scene: T.Scene) {
   return {
     update(players: PetView[], t: number, dt: number, comfort: boolean) {
       if (disposed) return;
+      const wanted = new T.Vector3();
       const seen = new Set<string>();
       const missing: PetView[] = [];
       let count = 0;
@@ -279,11 +280,12 @@ export function createPetRenderer(scene: T.Scene) {
         const tx = p.position.x - Math.sin(p.angle) * 3 + Math.cos(p.angle) * 2.5;
         const tz = p.position.z - Math.cos(p.angle) * 3 - Math.sin(p.angle) * 2.5;
         const ty = p.position.y + 1.5 + (comfort ? 0 : Math.sin(t * 2.5 + count) * 0.22);
-        if (a.position.distanceToSquared(new T.Vector3(tx, ty, tz)) > 900)
-          a.position.set(tx, ty, tz); // teleport/correction: never stretch followers
+        wanted.set(tx, ty, tz);
+        if (a.position.distanceToSquared(wanted) > 900)
+          a.position.copy(wanted); // teleport/correction: never stretch followers
         else {
           const k = 1 - Math.exp(-Math.min(dt, 0.1) * 7);
-          a.position.lerp(new T.Vector3(tx, ty, tz), k);
+          a.position.lerp(wanted, k);
         }
         a.group.position.copy(a.position);
         a.turn += Math.atan2(Math.sin(p.angle - a.turn), Math.cos(p.angle - a.turn)) *
