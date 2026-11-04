@@ -1,4 +1,4 @@
-import { WORLD_HALF, blocked, groundAt, ramps } from "./world.js";
+import { WORLD_HALF, blocked, groundAt, hoops, ramps } from "./world.js";
 export const DT = 1 / 25;
 export type Input = { seq: number; x: number; z: number; jump: boolean };
 import type { Engagement } from "./engagement.js";
@@ -22,6 +22,9 @@ export type Player = {
   level: number;
   moving: boolean;
   launchCooldown?: number;
+  launchRemaining?: number;
+  launchVelocityX?: number;
+  launchVelocityZ?: number;
   rebirths?: number;
   pets?: Record<string, number>;
   equippedPetId?: string;
@@ -49,8 +52,16 @@ export function move(p: Player, input: Input, dt = DT) {
     oldZ = p.z;
   const grounded = p.y <= groundAt(p.x, p.z, p.y) + 0.01;
   const n = Math.max(1, Math.hypot(input.x, input.z));
-  const tx = (input.x / n) * speed(p),
+  const launching = (p.launchRemaining || 0) > 0;
+  let tx = (input.x / n) * speed(p),
     tz = (input.z / n) * speed(p);
+  // While airborne on a launch arc, preserve the planned flight velocity
+  // with limited steering instead of dragging it back to normal running speed.
+  if (launching) {
+    tx = (p.launchVelocityX || 0) + input.x * 1.25;
+    tz = (p.launchVelocityZ || 0) + input.z * 1.25;
+    p.launchRemaining = Math.max(0, (p.launchRemaining || 0) - dt);
+  }
   const hasInput = Math.hypot(tx, tz) > 0.01;
   const turning = p.velocityX * tx + p.velocityZ * tz < 0;
   const rate = grounded
@@ -62,7 +73,7 @@ export function move(p: Player, input: Input, dt = DT) {
     : hasInput
       ? MOVEMENT.acceleration * MOVEMENT.airControl
       : MOVEMENT.airBraking;
-  const blend = 1 - Math.exp(-rate * dt);
+  const blend = 1 - Math.exp(-(launching ? 1.2 : rate) * dt);
   p.velocityX += (tx - p.velocityX) * blend;
   p.velocityZ += (tz - p.velocityZ) * blend;
   if (!hasInput && actualSpeed(p) < MOVEMENT.stopSpeed)
@@ -101,21 +112,46 @@ export function move(p: Player, input: Input, dt = DT) {
     p.angle +=
       angleDelta(p.angle, Math.atan2(p.velocityX, p.velocityZ)) *
       (1 - Math.exp(-MOVEMENT.facing * dt));
-  if (
-    grounded &&
-    p.moving &&
-    !p.launchCooldown &&
-    ramps.some(
-      (r) => Math.abs(p.x - r.x) < r.w / 2 && Math.abs(p.z - r.z) < r.d / 2,
-    )
-  ) {
-    p.verticalVelocity = 20;
+  // Trigger only on a genuine ground-level, forward approach across the entry
+  // boundary. Never retrigger by standing inside the pad or running sideways.
+  const launchPad = grounded && p.moving && !p.launchCooldown
+    ? ramps.find((r) => {
+        const entryZ = r.z + r.d / 2;
+        return oldZ > entryZ && p.z <= entryZ &&
+          Math.abs(p.x - r.x) < r.w / 2 &&
+          p.y >= r.baseY - 0.1 && p.y < r.baseY + 1.25 &&
+          -p.velocityZ > r.minSpeed &&
+          -p.velocityZ / Math.max(0.001, actualSpeed(p)) > 0.72;
+      })
+    : undefined;
+  if (launchPad) {
+    const target = hoops.find((h) => h.id === launchPad.targetHoopId);
+    if (target) {
+      const distance = Math.hypot(target.x - p.x, target.z - p.z);
+      // Higher-level runners preserve extra launch momentum by taking a
+      // correspondingly shorter flight; new runners get a generous boost.
+      const flight = Math.min(launchPad.flightTime,
+        Math.max(0.34, distance / Math.max(distance / launchPad.flightTime, actualSpeed(p))));
+      p.velocityX = (target.x - p.x) / flight;
+      p.velocityZ = (target.z - p.z) / flight;
+      p.verticalVelocity =
+        (target.y - 1.5 - p.y + 0.5 * MOVEMENT.gravity * flight * flight) / flight;
+      p.launchVelocityX = p.velocityX;
+      p.launchVelocityZ = p.velocityZ;
+      p.launchRemaining = flight + 0.12;
+    } else {
+      // Preserve the original optional Speedway vertical-launch pad.
+      p.verticalVelocity = 20;
+    }
     p.launchCooldown = 2;
   }
   p.verticalVelocity -= MOVEMENT.gravity * dt;
   const floor = groundAt(p.x, p.z, p.y);
   p.y = Math.max(floor, p.y + p.verticalVelocity * dt);
-  if (p.y === floor) p.verticalVelocity = 0;
+  if (p.y === floor) {
+    p.verticalVelocity = 0;
+    p.launchRemaining = 0;
+  }
   p.seq = input.seq;
   return traveled;
 }
