@@ -431,7 +431,12 @@ export function createWorld(scene: T.Scene) {
     sunlight = new T.Color(0xffedce),
     moonlight = new T.Color(0xb7d4ff);
   scene.background = skyDay.clone();
-  scene.fog = new T.Fog(skyDay, 200, 1050);
+  // The GLB city streams distant decoration at 105–520 world units.
+  // Match atmospheric visibility to stream boundaries; no post-process pass.
+  const distanceFog = new T.Fog(skyDay, 170, 560);
+  scene.fog = distanceFog;
+  let fogNearTarget = 170;
+  let fogFarTarget = 560;
   return {
     rings,
     sun,
@@ -440,6 +445,8 @@ export function createWorld(scene: T.Scene) {
     },
     setQuality(value: string, reduced: boolean) {
       comfort = reduced;
+      fogNearTarget = value === "low" ? 100 : value === "medium" ? 140 : 170;
+      fogFarTarget = value === "low" ? 340 : value === "medium" ? 460 : 560;
       const shadowSize = value === "high" ? 2048 : 1024;
       if (sun.shadow.mapSize.x !== shadowSize) {
         sun.shadow.map?.dispose();
@@ -491,7 +498,13 @@ export function createWorld(scene: T.Scene) {
         (scene.background as T.Color).lerp(skySunset, cycle.sunset * 0.62);
       hemi.color.copy(ambientDay).lerp(ambientNight, night);
       sun.color.copy(sunlight).lerp(moonlight, night);
-      (scene.fog as T.Fog).color.copy(scene.background as T.Color);
+      distanceFog.color.copy(scene.background as T.Color);
+      // Subtle additional nighttime haze, while keeping nearby routes clear.
+      const fogBlend = 1 - Math.exp(-Math.min(dt, 0.1) * 1.5);
+      distanceFog.near = T.MathUtils.lerp(
+        distanceFog.near, fogNearTarget * (1 - night * 0.05), fogBlend);
+      distanceFog.far = T.MathUtils.lerp(
+        distanceFog.far, fogFarTarget * (1 - night * 0.07), fogBlend);
       hemi.intensity = 1.8 - night * 1.05;
       sun.intensity = 2.6 - night * 2.1;
       stars.visible = night > 0.5;

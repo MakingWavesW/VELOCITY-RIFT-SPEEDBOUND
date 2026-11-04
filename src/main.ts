@@ -1,5 +1,6 @@
 import { createRewardHub } from "./ui/rewardHub";
 import { createParkourUI } from "./ui/parkour";
+import { installIconChrome } from "./ui/iconChrome";
 import { installDialogMotion } from "./ui/motion";
 import { createCompanions } from "./ui/companions";
 import { createPetRenderer } from "./world/pets";
@@ -59,6 +60,7 @@ const companions = createCompanions((type, value) => {
   else hud.toast("Join a world first.");
 });
 const timedOffer = createTimedOffer((kind) => hud.onRewardRequest(kind));
+installIconChrome();
 const journeyUI = createJourneyUI();
 journeyUI.onComplete = () => audio.effect("quest");
 const scene = new T.Scene();
@@ -309,11 +311,12 @@ $("join").onclick = async () => {
         room?.send("presence", false);
         setMediaState("AD_PLAYBACK");
         // Placement IDs are presentation routing, not verification proof.
-        const shown = platform.showRewarded(`rift_${v.kind}`, () => {
+        const shown = platform.showRewarded(`rift_${v.kind}`, (completed) => {
           setMediaState(connected ? "GAMEPLAY" : "MAIN_MENU");
           rewardBusy = false;
-          if (connected && room === activeRoom)
+          if (connected && room === activeRoom && completed)
             room?.send("rewardCheck", { id: transaction });
+          else if (!completed) hud.toast("Ad not completed. No reward claimed.");
         });
         if (!shown) {
           rewardBusy = false;

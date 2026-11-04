@@ -19,14 +19,15 @@ const manifest: Record<string, string[]> = JSON.parse(
 );
 test("runtime manifest is exact and every selected GLB and external texture exists", () => {
   const used = new Set(cityPlacements.map((p) => p.model));
-  assert.deepEqual(
-    new Set(
-      Object.entries(manifest)
-        .filter(([k]) => k !== "hero")
-        .flatMap(([, v]) => v),
-    ),
-    used,
-  );
+  // Stage 2 city assets remain exact, while Stage 3 intentionally added
+  // separately staged companion GLBs and a ramp GLB for its new gameplay.
+  const cityAssets = Object.entries(manifest)
+    .filter(([k]) => k !== "hero" && k !== "pets")
+    .flatMap(([, v]) => v)
+    .filter((name) => name !== "platforms/block-grass-large-slope.glb");
+  assert.deepEqual(new Set(cityAssets), used);
+  assert.ok(manifest.pets?.length >= 10, "Stage 3 Pet GLBs must be staged");
+  assert.ok(manifest.platforms.includes("platforms/block-grass-large-slope.glb"));
   assert.ok([...used].length < 75);
   for (const name of Object.values(manifest).flat()) {
     const b = fs.readFileSync(path.join("assets/library/models", name));
@@ -50,7 +51,7 @@ test("all original avenues, ramp approaches, crystals and rooftop loops remain a
       assert.equal(blocked(x, z, 0), originalBlocked(x, z), `avenue ${x},${z}`);
   for (const r of ramps)
     for (let dz = -12; dz <= 12; dz++)
-      assert.equal(blocked(r.x, r.z + dz, 0), false);
+      assert.equal(blocked(r.x, r.z + dz, r.baseY), false, `${r.id} ramp at ${r.z+dz}`);
   for (const c of CRYSTALS)
     for (const [dx, dz] of [
       [0, 0],
