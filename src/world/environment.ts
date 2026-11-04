@@ -4,6 +4,7 @@ import { createGLBCity } from "./glbCity";
 import { loadGLTF } from "../assets/gltf";
 import { daylight } from "../../shared/dayNight";
 import { CRYSTALS } from "../../shared/pets";
+import { PARKOUR_COURSES } from "../../shared/parkour";
 import * as T from "three";
 import {
   districts,
@@ -267,6 +268,39 @@ export function createWorld(scene: T.Scene) {
       });
     })
     .catch((error) => console.warn("Launch GLB unavailable; functional ramp fallback remains", error));
+  // Server-validated Skybound course starts and checkpoints. Visual markers
+  // cannot award Gems or complete courses on their own.
+  const parkourMarkers = new T.Group();
+  parkourMarkers.name = "Skybound Parkour Markers";
+  scene.add(parkourMarkers);
+  const markerMaterial = new T.MeshBasicMaterial({
+    color: 0xffd56d, transparent: true, opacity: 0.7,
+    depthWrite: false, toneMapped: false,
+  });
+  const markerGeometry = new T.TorusGeometry(4.1, 0.15, 6, 40);
+  const parkourRings: T.Mesh[] = [];
+  PARKOUR_COURSES.forEach((course, i) => {
+    const ring = new T.Mesh(markerGeometry, markerMaterial);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.set(course.start.x, course.start.y + 0.2, course.start.z);
+    parkourMarkers.add(ring);
+    parkourRings.push(ring);
+    const sign = label("SKYBOUND: " + course.name.toUpperCase(), "#ffe9a3", 12);
+    sign.position.set(course.start.x, course.start.y + 5, course.start.z);
+    parkourMarkers.add(sign);
+    for (const checkpoint of course.checkpoints) {
+      if (checkpoint.type !== "point") continue;
+      const beacon = new T.Mesh(
+        new T.OctahedronGeometry(0.65),
+        new T.MeshBasicMaterial({ color: [0xffd56d, 0x9bffc6, 0xc7aaff][i], toneMapped: false }),
+      );
+      beacon.position.set(checkpoint.x, checkpoint.y + 2.5, checkpoint.z);
+      parkourMarkers.add(beacon);
+      const small = label(checkpoint.title, "#dffbff", 7);
+      small.position.set(checkpoint.x, checkpoint.y + 5, checkpoint.z);
+      parkourMarkers.add(small);
+    }
+  });
   // Flat route waymarkers are scenery, never client-only collectible copies.
   for (const route of orbRoutes) {
     const sign = label(
@@ -421,6 +455,9 @@ export function createWorld(scene: T.Scene) {
     dispose() {
       worldDisposed = true;
       rampRoot.removeFromParent();
+      parkourMarkers.removeFromParent();
+      markerGeometry.dispose();
+      markerMaterial.dispose();
       launchDeck.dispose();
       borders.dispose();
       arrowGeometry.dispose();
@@ -469,6 +506,9 @@ export function createWorld(scene: T.Scene) {
         0.28 + Math.sin(ambientTime * 0.15) * 0.025;
       animated.forEach((o, i) => {
         o.rotation.y = ambientTime * (0.3 + i * 0.1);
+      });
+      parkourRings.forEach((r, i) => {
+        r.rotation.z = ambientTime * (0.09 + i * 0.02);
       });
       rings.forEach((r, i) => {
         r.outer.rotation.z = ambientTime * (0.2 + i * 0.035);
