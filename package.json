@@ -10,7 +10,8 @@
     "test": "tsx --test tests/*.test.ts",
     "predev": "node scripts/stage-assets.mjs",
     "prebuild": "node scripts/stage-assets.mjs",
-    "postbuild": "node scripts/verify-build.mjs"
+    "postbuild": "node scripts/verify-build.mjs",
+    "build:playgama": "node scripts/check-playgama-env.mjs && npm run build"
   },
   "dependencies": {
     "@colyseus/core": "^0.16.0",
