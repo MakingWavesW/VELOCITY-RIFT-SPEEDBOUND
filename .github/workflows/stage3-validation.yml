@@ -1,0 +1,32 @@
+name: Stage 3 Game Validation
+
+on:
+  push:
+    branches: [feature/glb-pets-ramps-stage3]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Production build and staged GLB verification
+        run: npm run build
+      - name: Start multiplayer server
+        run: |
+          nohup npm run server > /tmp/velocity-rift-server.log 2>&1 &
+          for attempt in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:2567/health; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/velocity-rift-server.log
+          exit 1
+      - name: Unit and real network tests
+        run: npm test
