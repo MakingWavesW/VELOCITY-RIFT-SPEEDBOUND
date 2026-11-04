@@ -20,13 +20,19 @@ try {
   assert.ok(await desktop.locator(".menu .compact-game-icon").count() >= 5);
   assert.equal(await desktop.locator("#dailyButton .ready-badge").getAttribute("hidden"), "");
   assert.equal(await desktop.locator("#playtimeButton .ready-badge").getAttribute("hidden"), "");
+  // Shortcut docks are not displayed over the cinematic intro or main menu.
+  assert.equal(
+    await desktop.locator(".settings-launcher").evaluate((b) => getComputedStyle(b).visibility),
+    "hidden",
+  );
+
+  // Simulate the menu -> gameplay presentation transition without granting a
+  // profile or bypassing any authoritative rewards.
+  await desktop.evaluate(() => { document.body.dataset.mediaState = "GAMEPLAY"; });
   assert.equal(
     await desktop.locator(".settings-launcher").evaluate((b) => getComputedStyle(b).pointerEvents),
     "auto",
   );
-
-  // The studio intro is intentionally kept intact for real user playback.
-  // This isolated GUI smoke test dispatches directly to the working Settings action.
   await desktop.locator(".settings-launcher").evaluate((button) => button.click());
   assert.equal(await desktop.locator("#panel").evaluate((panel) => panel.open), true);
   assert.ok(!(await desktop.locator("#landscapeOrientation").isVisible()));
