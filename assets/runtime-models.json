@@ -68,11 +68,25 @@
     "platforms/flag.glb",
     "platforms/platform-fortified.glb",
     "platforms/stones.glb",
-    "platforms/jewel.glb"
+    "platforms/jewel.glb",
+    "platforms/block-grass-large-slope.glb"
   ],
   "hero": [
     "hero/kaykit-adventurers/Ranger.glb",
     "hero/kaykit-animations/rig-medium/Rig_Medium_MovementBasic.glb",
     "hero/kaykit-animations/rig-medium/Rig_Medium_General.glb"
+  ],
+  "pets": [
+    "pets/animal-chick.glb",
+    "pets/animal-bee.glb",
+    "pets/animal-cat.glb",
+    "pets/animal-lion.glb",
+    "pets/animal-fish.glb",
+    "pets/animal-fox.glb",
+    "pets/animal-bunny.glb",
+    "pets/animal-parrot.glb",
+    "pets/animal-tiger.glb",
+    "pets/animal-penguin.glb",
+    "pets/animal-caterpillar.glb"
   ]
 }

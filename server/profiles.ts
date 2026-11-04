@@ -18,6 +18,8 @@ export type Progress = Pick<
   | "rebirths"
   | "boostUntil"
   | "equippedTrailId"
+  | "parkourBest"
+  | "parkourRewardAt"
 > & { owned: string[] };
 export class Profiles {
   private db: DatabaseSync;
@@ -186,6 +188,8 @@ export function progress(p: Player, owned: Set<string>): Progress {
     equippedPetId: p.equippedPetId,
     boostUntil: p.boostUntil || 0,
     equippedTrailId: p.equippedTrailId,
+    parkourBest: p.parkourBest || {},
+    parkourRewardAt: p.parkourRewardAt || {},
     owned: [...owned],
   };
 }

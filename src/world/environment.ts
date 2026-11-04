@@ -1,8 +1,10 @@
 import { addLandscape } from "./landscape";
 import { createAmbient } from "./ambient";
 import { createGLBCity } from "./glbCity";
+import { loadGLTF } from "../assets/gltf";
 import { daylight } from "../../shared/dayNight";
 import { CRYSTALS } from "../../shared/pets";
+import { PARKOUR_COURSES } from "../../shared/parkour";
 import * as T from "three";
 import {
   districts,
@@ -187,42 +189,118 @@ export function createWorld(scene: T.Scene) {
       m.position.set(Math.cos(a) * (h.r + 0.45), Math.sin(a) * (h.r + 0.45), 0);
       outer.add(m);
     }
+    // A lightweight additive inner stream and orbiting markers; no dynamic lights.
+    const current = new T.Mesh(
+      new T.TorusGeometry(h.r - 0.32, 0.075, 6, 64),
+      new T.MeshBasicMaterial({
+        color: h.color, transparent: true, opacity: 0.65,
+        blending: T.AdditiveBlending, depthWrite: false, toneMapped: false,
+      }),
+    );
+    g.add(current);
     const text = label(`${h.name}  +${h.xp} XP`, "#ffffff", 7);
     text.position.y = h.r + 1.5;
     g.add(text);
     scene.add(g);
-    return { g, outer };
+    return { g, outer, current };
   });
-  for (const r of ramps) {
-    b.add(bevel, 0x294962, r.x, 0.3, r.z, r.w, 0.6, r.d);
-    b.box(0x6ce6ff, r.x, 0.63, r.z, r.w - 0.8, 0.08, r.d - 0.6, true);
-    for (let i = -1; i <= 1; i++) {
-      b.add(
-        cube,
-        0xffffff,
-        r.x - 0.7,
-        0.7,
-        r.z + i * 2,
-        1.7,
-        0.1,
-        0.35,
-        true,
-        -0.65,
-      );
-      b.add(
-        cube,
-        0xffffff,
-        r.x + 0.7,
-        0.7,
-        r.z + i * 2,
-        1.7,
-        0.1,
-        0.35,
-        true,
-        0.65,
-      );
+  // Stage 3 launch pads: visible incline aligned with the shared authoritative
+  // entry triggers. GLB cladding is optional; functional neon geometry is always present.
+  const rampRoot = new T.Group();
+  rampRoot.name = "Sky Launch Ramps";
+  scene.add(rampRoot);
+  const launchDeck = new T.BoxGeometry(1, 1, 1);
+  const deckMaterial = new T.MeshStandardMaterial({
+    color: 0x276b9a, emissive: 0x07314e, roughness: 0.5, metalness: 0.3,
+  });
+  const laneMaterial = new T.MeshBasicMaterial({
+    color: 0x63e9ff, toneMapped: false,
+  });
+  const arrowGeometry = new T.ConeGeometry(0.58, 1.4, 4);
+  const borders = new T.BoxGeometry(0.16, 0.16, 1);
+  const rampGroups = ramps.map((r) => {
+    const group = new T.Group();
+    group.position.set(r.x, r.baseY, r.z);
+    const deck = new T.Mesh(launchDeck, deckMaterial);
+    deck.scale.set(r.w, 0.35, r.d);
+    deck.position.y = 0.5;
+    deck.rotation.x = 0.16;
+    group.add(deck);
+    for (const side of [-1, 1]) {
+      const strip = new T.Mesh(borders, laneMaterial);
+      strip.position.set(side * (r.w / 2 - 0.34), 0.8, 0);
+      strip.scale.z = r.d * 0.92;
+      strip.rotation.x = 0.16;
+      group.add(strip);
     }
-  }
+    for (let n = -1; n <= 1; n++) {
+      const arrow = new T.Mesh(arrowGeometry, laneMaterial);
+      arrow.rotation.x = -Math.PI / 2;
+      arrow.position.set(0, 0.88 - n * 0.16, n * r.d * 0.25);
+      group.add(arrow);
+    }
+    rampRoot.add(group);
+    return group;
+  });
+  let worldDisposed = false;
+  // Kenney platform slope is visual cladding, never a client-only collider.
+  void loadGLTF("/models/platforms/block-grass-large-slope.glb")
+    .then((asset) => {
+      if (worldDisposed) return;
+      const bounds = new T.Box3().setFromObject(asset.scene);
+      const size = bounds.getSize(new T.Vector3());
+      if (Math.min(size.x, size.y, size.z) <= 0) return;
+      ramps.forEach((r, i) => {
+        const visual = asset.scene.clone(true);
+        const sx = (r.w - 0.7) / size.x;
+        const sy = 1.35 / size.y;
+        const sz = (r.d - 0.5) / size.z;
+        visual.scale.set(sx, sy, sz);
+        visual.position.set(
+          -(bounds.min.x + size.x * 0.5) * sx,
+          -bounds.min.y * sy + 0.08,
+          -(bounds.min.z + size.z * 0.5) * sz,
+        );
+        visual.traverse((o) => {
+          if (o instanceof T.Mesh) { o.castShadow = false; o.receiveShadow = false; }
+        });
+        rampGroups[i].add(visual);
+      });
+    })
+    .catch((error) => console.warn("Launch GLB unavailable; functional ramp fallback remains", error));
+  // Server-validated Skybound course starts and checkpoints. Visual markers
+  // cannot award Gems or complete courses on their own.
+  const parkourMarkers = new T.Group();
+  parkourMarkers.name = "Skybound Parkour Markers";
+  scene.add(parkourMarkers);
+  const markerMaterial = new T.MeshBasicMaterial({
+    color: 0xffd56d, transparent: true, opacity: 0.7,
+    depthWrite: false, toneMapped: false,
+  });
+  const markerGeometry = new T.TorusGeometry(4.1, 0.15, 6, 40);
+  const parkourRings: T.Mesh[] = [];
+  PARKOUR_COURSES.forEach((course, i) => {
+    const ring = new T.Mesh(markerGeometry, markerMaterial);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.set(course.start.x, course.start.y + 0.2, course.start.z);
+    parkourMarkers.add(ring);
+    parkourRings.push(ring);
+    const sign = label("SKYBOUND: " + course.name.toUpperCase(), "#ffe9a3", 12);
+    sign.position.set(course.start.x, course.start.y + 5, course.start.z);
+    parkourMarkers.add(sign);
+    for (const checkpoint of course.checkpoints) {
+      if (checkpoint.type !== "point") continue;
+      const beacon = new T.Mesh(
+        new T.OctahedronGeometry(0.65),
+        new T.MeshBasicMaterial({ color: [0xffd56d, 0x9bffc6, 0xc7aaff][i], toneMapped: false }),
+      );
+      beacon.position.set(checkpoint.x, checkpoint.y + 2.5, checkpoint.z);
+      parkourMarkers.add(beacon);
+      const small = label(checkpoint.title, "#dffbff", 7);
+      small.position.set(checkpoint.x, checkpoint.y + 5, checkpoint.z);
+      parkourMarkers.add(small);
+    }
+  });
   // Flat route waymarkers are scenery, never client-only collectible copies.
   for (const route of orbRoutes) {
     const sign = label(
@@ -375,6 +453,20 @@ export function createWorld(scene: T.Scene) {
       particles.configure(value, reduced);
     },
     dispose() {
+      worldDisposed = true;
+      rampRoot.removeFromParent();
+      parkourMarkers.removeFromParent();
+      markerGeometry.dispose();
+      markerMaterial.dispose();
+      launchDeck.dispose();
+      borders.dispose();
+      arrowGeometry.dispose();
+      deckMaterial.dispose();
+      laneMaterial.dispose();
+      rings.forEach((r) => {
+        r.current.geometry.dispose();
+        r.current.material.dispose();
+      });
       city.dispose();
       particles.dispose();
     },
@@ -415,7 +507,15 @@ export function createWorld(scene: T.Scene) {
       animated.forEach((o, i) => {
         o.rotation.y = ambientTime * (0.3 + i * 0.1);
       });
-      rings.forEach((r) => (r.outer.rotation.z = ambientTime * 0.2));
+      parkourRings.forEach((r, i) => {
+        r.rotation.z = ambientTime * (0.09 + i * 0.02);
+      });
+      rings.forEach((r, i) => {
+        r.outer.rotation.z = ambientTime * (0.2 + i * 0.035);
+        r.current.rotation.z = -ambientTime * (0.28 + i * 0.04);
+        (r.current.material as T.MeshBasicMaterial).opacity =
+          0.55 + 0.16 * Math.sin(ambientTime * 2.4 + i);
+      });
     },
     cameraSolids: solids.filter((s) => s.kind === "building"),
   };

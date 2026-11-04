@@ -40,12 +40,36 @@ test("buildings block movement, and wall sliding remains possible", () => {
   assert.ok(p.x < b.x - b.w / 2 - 0.5);
   assert.ok(p.z > b.z);
 });
-test("launch pads use the same grounded trigger as the rendered layout", () => {
-  const r = ramps[0],
-    p = player(r.x, r.z + 1);
-  move(p, { seq: 0, x: 0, z: -1, jump: false });
-  assert.ok(p.verticalVelocity > 18);
-  assert.ok(p.y > 0);
+test("real ramps fly through Solar, Azure and Violet at beginner and advanced levels", () => {
+  for (const r of ramps.filter((r) => r.targetHoopId !== undefined)) {
+    const h = hoops.find((h) => h.id === r.targetHoopId)!;
+    for (const level of [1, 10, 40]) {
+      const p = player(r.x, r.z + r.d / 2 + 3);
+      p.level = level;
+      p.y = r.baseY;
+      let launched = false, crossed = false;
+      for (let seq = 0; seq < 150; seq++) {
+        const previous = { x: p.x, y: p.y, z: p.z };
+        move(p, { seq, x: 0, z: -1, jump: false });
+        launched ||= (p.launchRemaining || 0) > 0;
+        crossed ||= crossesHoop(h, previous, p);
+        if (crossed) break;
+      }
+      assert.ok(launched, r.id + ": launch at Level " + level);
+      assert.ok(crossed, r.id + ": hoop crossing at Level " + level);
+    }
+  }
+});
+test("ramp entry rejects sideways running and standing inside", () => {
+  const r = ramps[0];
+  const p = player(r.x, r.z);
+  for (let seq = 0; seq < 20; seq++)
+    move(p, { seq, x: 0, z: 0, jump: false });
+  assert.equal(p.launchRemaining || 0, 0);
+  const q = player(r.x, r.z + r.d / 2 + 0.5);
+  for (let seq = 0; seq < 20; seq++)
+    move(q, { seq, x: 1, z: 0, jump: false });
+  assert.equal(q.launchRemaining || 0, 0);
 });
 test("skyline staircase is climbable and roof has a landing surface", () => {
   const p = player(90, 67);

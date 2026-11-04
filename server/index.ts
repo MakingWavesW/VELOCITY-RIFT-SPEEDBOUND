@@ -29,6 +29,7 @@ import { OrbManager, touchesOrb } from "./orbManager.js";
 import { ORB_BALANCE, type PickupEvent } from "../shared/orbs.js";
 import { pickupReward } from "../shared/pickupReward.js";
 import { hoops, crossesHoop } from "../shared/world.js";
+import { PARKOUR_COURSES, inParkourRange } from "../shared/parkour.js";
 import express from "express";
 import { createServer } from "node:http";
 import { Server, Room, Client } from "@colyseus/core";
@@ -73,6 +74,7 @@ export class Plaza extends Room {
   orbSyncTimes = new Map<string, number>();
   streaks = new Map<string, { last: number; count: number }>();
   hoopCooldowns = new Map<string, number>();
+  parkour = new Map<string, { course: string; checkpoint: number; started: number }>();
   emotes = new Map<string, number>();
   inventory(client: Client, message?: string) {
     const p = this.players[client.sessionId];
@@ -126,6 +128,29 @@ export class Plaza extends Room {
         });
       }
       client.send("engagement", engagement.visible(p));
+    });
+    // Only course selection comes from the client. Checkpoints are derived from
+    // authoritative simulation; the client cannot submit a fake finish time.
+    this.onMessage("startParkour", (client, id) => {
+      const p = this.players[client.sessionId];
+      const course = typeof id === "string" ? PARKOUR_COURSES.find((c) => c.id === id) : undefined;
+      if (!p || !course) return;
+      const send = (message: string) => client.send("parkour", { status: "error", message });
+      if (this.parkour.has(p.id)) {
+        send("Finish or cancel the current course first."); return;
+      }
+      if (!inParkourRange(course.start, p)) {
+        send("Move to the highlighted course start before joining."); return;
+      }
+      this.parkour.set(p.id, { course: course.id, checkpoint: 0, started: Date.now() });
+      client.send("parkour", {
+        status: "started", course: course.id, checkpoint: 0,
+        total: course.checkpoints.length, started: Date.now(),
+      });
+    });
+    this.onMessage("cancelParkour", (client) => {
+      this.parkour.delete(client.sessionId);
+      client.send("parkour", { status: "cancelled" });
     });
     this.onMessage("startTrial", (client) => {
       const p = this.players[client.sessionId];
@@ -410,8 +435,74 @@ export class Plaza extends Room {
     this.emotes.delete(client.sessionId);
     this.crystalTimes.delete(client.sessionId);
     engagement.cleanup(client.sessionId);
+    this.parkour.delete(client.sessionId);
     delete this.players[client.sessionId];
     this.inputs.delete(client.sessionId);
+  }
+  updateParkour(p: Player, before: { x: number; y: number; z: number }, now: number) {
+    const state = this.parkour.get(p.id);
+    if (!state) return;
+    const course = PARKOUR_COURSES.find((c) => c.id === state.course);
+    if (!course) { this.parkour.delete(p.id); return; }
+    const client = this.clients.find((c) => c.sessionId === p.id);
+    if (now - state.started > course.maximumMs) {
+      this.parkour.delete(p.id);
+      client?.send("parkour", { status: "expired", message: "Course time expired. Try again!" });
+      return;
+    }
+    const checkpoint = course.checkpoints[state.checkpoint];
+    if (!checkpoint) return;
+    let passed = false;
+    if (checkpoint.type === "hoop") {
+      const hoop = hoops.find((h) => h.id === checkpoint.id);
+      passed = !!hoop && crossesHoop(hoop, before, p);
+    } else {
+      passed = inParkourRange(checkpoint, p);
+    }
+    if (!passed) return;
+    state.checkpoint++;
+    if (state.checkpoint < course.checkpoints.length) {
+      client?.send("parkour", {
+        status: "checkpoint", course: course.id, checkpoint: state.checkpoint,
+        total: course.checkpoints.length,
+      });
+      return;
+    }
+    this.parkour.delete(p.id);
+    const elapsed = now - state.started;
+    if (elapsed < course.minimumMs) {
+      client?.send("parkour", { status: "error", message: "Course completed too quickly to qualify." });
+      return;
+    }
+    const best = p.parkourBest?.[course.id];
+    const improved = !best || elapsed < best;
+    const previousGrant = p.parkourRewardAt?.[course.id] || 0;
+    const canReward = now - previousGrant >= course.cooldownMs;
+    const next: Player = {
+      ...p,
+      parkourBest: improved ? { ...(p.parkourBest || {}), [course.id]: elapsed } : p.parkourBest,
+      parkourRewardAt: canReward
+        ? { ...(p.parkourRewardAt || {}), [course.id]: now }
+        : p.parkourRewardAt,
+      gems: p.gems + (canReward ? course.gems : 0),
+    };
+    const profile = this.profiles.get(p.id);
+    const owned = this.ownedTrails.get(p.id);
+    if (!profile || !owned) return;
+    try {
+      const saved = canReward
+        ? profiles.commitGrant(profile.id, `parkour:${course.id}:${state.started}`, progress(next, owned))
+        : (profiles.save(profile.id, progress(next, owned)), true);
+      if (!saved) throw Error("Duplicate completion");
+      Object.assign(p, next);
+      client?.send("parkour", {
+        status: "finished", course: course.id, milliseconds: elapsed,
+        best: p.parkourBest?.[course.id], gems: canReward ? course.gems : 0,
+        message: canReward ? "Course reward saved!" : "Completed! Reward on cooldown.",
+      });
+    } catch {
+      client?.send("parkour", { status: "error", message: "Could not safely save course result." });
+    }
   }
   tick(now = Date.now()) {
     this.orbManager.tick(now);
@@ -422,6 +513,7 @@ export class Plaza extends Room {
       const old = Math.floor(p.steps / 10);
       const previous = { x: p.x, y: p.y, z: p.z };
       const distance = move(p, i || { seq: p.seq, x: 0, z: 0, jump: false });
+      this.updateParkour(p, previous, now);
       p.steps += distance;
       const finished = engagement.tick(p, distance, !!i, now);
       if (finished) {

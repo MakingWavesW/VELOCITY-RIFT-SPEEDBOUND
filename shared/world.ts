@@ -126,10 +126,16 @@ for (let i = 0; i < 24; i++)
     kind: "platform",
     style: 0,
   });
-export const ramps = [
-  { x: 0, z: -63, w: 7, d: 9 },
-  { x: 190, z: -150, w: 9, d: 12 },
-  { x: 190, z: -240, w: 9, d: 12 },
+/** Shared, server-authoritative launch-pad locations. Every targeted ramp faces -Z. */
+export const ramps: {
+  id: string; x: number; z: number; w: number; d: number;
+  targetHoopId?: number; minSpeed: number; flightTime: number; baseY: number;
+}[] = [
+  { id: "solar", x: 0, z: -55, w: 7, d: 9, targetHoopId: 0, minSpeed: 4, flightTime: 0.64, baseY: 0 },
+  { id: "azure", x: 190, z: -137, w: 9, d: 12, targetHoopId: 1, minSpeed: 5, flightTime: 0.8, baseY: 0 },
+  // Keep the pre-existing Speedway pad as a general-purpose airborne boost.
+  { id: "speedway", x: 190, z: -240, w: 9, d: 12, minSpeed: 5, flightTime: 0.8, baseY: 0 },
+  { id: "violet", x: 90, z: 140, w: 4, d: 7, targetHoopId: 3, minSpeed: 4, flightTime: 0.75, baseY: 12 },
 ];
 export const hoops = [
   { id: 0, x: 0, y: 8, z: -68, r: 4, color: 0xffc149, name: "SOLAR", xp: 20 },
@@ -194,19 +200,18 @@ export function crossesHoop(
   before: { x: number; y: number; z: number },
   after: { x: number; y: number; z: number },
 ) {
-  if (!(
-    (before.z < h.z && after.z >= h.z) ||
-    (before.z > h.z && after.z <= h.z)
-  ))
-    return false;
-  const t = (h.z - before.z) / (after.z - before.z);
-  return (
-    Math.hypot(
-      before.x + (after.x - before.x) * t - h.x,
-      before.y + (after.y - before.y) * t + 1.5 - h.y,
-    ) <
-    h.r - 0.5
-  );
+  // The visible Torus lies in the plane normal to the shared ring direction.
+  // Sweep through that plane, including exact-plane endpoints but not stationary touches.
+  const nx = "normalX" in h && typeof h.normalX === "number" ? h.normalX : 0;
+  const nz = "normalZ" in h && typeof h.normalZ === "number" ? h.normalZ : 1;
+  const a = (before.x - h.x) * nx + (before.z - h.z) * nz;
+  const b = (after.x - h.x) * nx + (after.z - h.z) * nz;
+  if (!((a < 0 && b >= 0) || (a > 0 && b <= 0))) return false;
+  const t = -a / (b - a);
+  const ix = before.x + (after.x - before.x) * t - h.x;
+  const iz = before.z + (after.z - before.z) * t - h.z;
+  const iy = before.y + (after.y - before.y) * t + 1.5 - h.y;
+  return Math.hypot(ix * -nz + iz * nx, iy) < h.r - 0.5;
 }
 
 // Main City outer skyline: 18 blocks frame the existing neighborhoods without blocking roads.
