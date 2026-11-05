@@ -18,7 +18,8 @@ export type Placement = {
 const commercial = "city/commercial/commercial/",
   roads = "city/roads/roads/";
 export const cityPlacements: Placement[] = [];
-const colors = [0x68cdda, 0xf4a4bf, 0xb29be8, 0xf3cc7a, 0x85d1af];
+// Saturated, toy-like palette from the approved Sunburst Plaza reference.
+const colors = [0x48d3e3, 0xff8db9, 0x9a8beb, 0xffd275, 0x66d7b2];
 const choices = [
   "a",
   "b",
