@@ -60,8 +60,9 @@ const companions = createCompanions((type, value) => {
   else hud.toast("Join a world first.");
 });
 const timedOffer = createTimedOffer((kind) => hud.onRewardRequest(kind));
-installIconChrome();
+const approvedHUD = installIconChrome();
 const journeyUI = createJourneyUI();
+approvedHUD.setAchievementsProvider(() => journeyUI.milestones());
 journeyUI.onComplete = () => audio.effect("quest");
 const scene = new T.Scene();
 const camera = new T.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 1800);
@@ -370,6 +371,7 @@ $("join").onclick = async () => {
           : offset;
         lastSnapshot = received;
         states = s.players;
+        approvedHUD.updatePlayers(states);
         for (const [id, state] of Object.entries(states)) {
           if (id === room?.sessionId) continue;
           let buffer = buffers.get(id);

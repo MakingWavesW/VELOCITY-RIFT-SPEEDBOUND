@@ -62,6 +62,9 @@ export function createJourneyUI() {
       active = false;
       parent.style.display = "none";
     },
+    milestones() {
+      return journeyMilestones(facts);
+    },
     reset() {
       previousSteps = undefined;
       previousComplete = 0;
