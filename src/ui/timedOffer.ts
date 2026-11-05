@@ -60,6 +60,7 @@ export function createTimedOffer(
       card.style.setProperty("--order", String(index));
       const image = document.createElement("img");
       image.src = "/media/gui/" + boost.icon;
+      image.dataset.originalAsset = boost.icon;
       image.alt = "";
       image.loading = "lazy";
       image.onerror = () => {
