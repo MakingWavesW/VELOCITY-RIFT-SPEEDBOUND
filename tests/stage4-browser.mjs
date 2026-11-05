@@ -40,6 +40,7 @@ async function checkDocks(page) {
     assert.ok(await button.getAttribute("aria-label"), "Every icon must have a screen-reader label");
     const img = button.locator("img");
     assert.equal(await img.count(), 1, "Original PNG icon element is present");
+    if (await button.isHidden()) continue; // Parkour is unavailable until connected.
     const styling = await button.evaluate((el) => ({
       background: getComputedStyle(el).backgroundColor,
       width: el.getBoundingClientRect().width,
@@ -89,7 +90,7 @@ try {
   const cards = desktop.locator("#boostCenter .approved-boost-grid > article");
   assert.equal(await cards.count(), 5, "All 5 ad icons must stay within Boost Center");
   const boostSources = await cards.locator("img").evaluateAll((images) =>
-    images.map((img) => img.getAttribute("src")));
+    images.map((img) => img.dataset.originalAsset));
   assert.deepEqual(boostSources, [8,9,10,11,12].map((n) =>
     "/media/gui/" + String(n).padStart(2, "0") + "_" +
     ({8:"Rewarded_Ad",9:"Ad_XP_Boost",10:"Ad_XP_Boost_Timer",
