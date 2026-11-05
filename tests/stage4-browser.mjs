@@ -71,6 +71,7 @@ try {
   await checkDocks(desktop);
   const xp = await desktop.locator(".levelbar").boundingBox();
   for (const button of await desktop.locator("#primaryGameDock > button").all()) {
+    if (await button.isHidden()) continue; // Skybound unlocks on game join.
     const rect = await button.boundingBox();
     assert.ok(rect && xp && !rectanglesOverlap(rect, xp), "Bottom icons cannot overlap XP bar");
   }
@@ -113,6 +114,7 @@ try {
   const jump = await landscape.locator("#jump").boundingBox();
   const buttons = await landscape.locator("#primaryGameDock > button").all();
   for (const b of buttons) {
+    if (await b.isHidden()) continue;
     const rect = await b.boundingBox();
     assert.ok(rect && !rectanglesOverlap(rect, joystick), "Dock does not cover touch joystick");
     assert.ok(rect && !rectanglesOverlap(rect, jump), "Dock does not cover touch jump");
