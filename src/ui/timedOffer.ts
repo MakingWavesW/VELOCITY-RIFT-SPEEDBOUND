@@ -9,19 +9,91 @@ export function createTimedOffer(
   panel.id = "boostCenter";
   panel.setAttribute("aria-labelledby", "boostTitle");
   document.body.append(panel);
+  // Exactly five original icons from the approved GUI reference.
+  // Existing authoritative reward kinds are only level, xp, speed. Do not
+  // invent instant variants without corresponding verified server mechanics.
+  const boosts = [
+    {
+      icon: "08_Rewarded_Ad.png", title: "+1 Level",
+      text: "Existing verified reward: one Level, preserving partial XP.",
+      kind: "level" as const, implemented: true,
+    },
+    {
+      icon: "09_Ad_XP_Boost.png", title: "Instant XP Boost",
+      text: "No secure instant-XP reward kind exists yet.",
+      implemented: false,
+    },
+    {
+      icon: "10_Ad_XP_Boost_Timer.png", title: "2× XP · 3 minutes",
+      text: "Doubles eligible orb and hoop XP. Does not double Gems or Steps.",
+      kind: "xp" as const, implemented: true,
+    },
+    {
+      icon: "11_Ad_Speed_Boost.png", title: "Instant Speed Boost",
+      text: "No separate instant-Speed reward kind exists yet.",
+      implemented: false,
+    },
+    {
+      icon: "12_Ad_Speed_Boost_Timer.png", title: "2× Speed · 2 minutes",
+      text: "Doubles running speed temporarily. Boosts do not stack.",
+      kind: "speed" as const, implemented: true,
+    },
+  ];
   const render = () => {
-    panel.innerHTML = `<div class="panel-head"><h2 id="boostTitle">BOOST CENTER</h2><button aria-label="Close Boost Center">×</button></div><p>Choose a boost when it suits your run.</p><div class="boost-grid">${(["level", "speed", "xp"] as const).map((kind, i) => `<article style="--order:${i}"><img src="/media/reward-${kind}.png" alt="${kind === "level" ? "+1 Level" : kind === "speed" ? "2× Speed" : "2× XP"}" onerror="this.hidden=true"><h3>${kind === "level" ? "+1 Level" : kind === "speed" ? "2× Speed · 2 minutes" : "2× XP · 3 minutes"}</h3><p>${kind === "xp" ? "Orb and hoop XP only. Gems and Steps stay unchanged." : kind === "speed" ? "Double movement speed. Boosts do not stack." : "Gain one level while retaining partial XP."}</p><small>${available ? "Available" : "Currently unavailable"}</small><button data-boost="${kind}" ${available ? "" : "disabled"}>Watch Ad</button></article>`).join("")}</div><button class="no-thanks">No thanks</button>`;
-    for (const b of panel.querySelectorAll<HTMLButtonElement>("[data-boost]"))
-      b.onclick = () => {
-        panel.close();
-        request(b.dataset.boost as "level" | "speed" | "xp");
+    panel.replaceChildren();
+    const header = document.createElement("div");
+    header.className = "panel-head";
+    const h = document.createElement("h2");
+    h.id = "boostTitle";
+    h.textContent = "POWER BOOST CENTER";
+    const closeButton = document.createElement("button");
+    closeButton.setAttribute("aria-label", "Close Power Boost Center");
+    closeButton.textContent = "×";
+    closeButton.onclick = () => panel.close();
+    header.append(h, closeButton);
+    const intro = document.createElement("p");
+    intro.textContent = "Five original boost icons. Only existing server-backed rewards can be claimed after trusted verification.";
+    const grid = document.createElement("div");
+    grid.className = "boost-grid approved-boost-grid";
+    for (const [index, boost] of boosts.entries()) {
+      const card = document.createElement("article");
+      card.style.setProperty("--order", String(index));
+      const image = document.createElement("img");
+      image.src = "/media/gui/" + boost.icon;
+      image.alt = "";
+      image.loading = "lazy";
+      image.onerror = () => {
+        image.onerror = null;
+        image.src = boost.kind === "speed"
+          ? "/media/reward-speed.png"
+          : boost.kind === "xp" ? "/media/reward-xp.png" : "/media/reward-level.png";
       };
-    panel
-      .querySelector(".panel-head button")!
-      .addEventListener("click", () => panel.close());
-    panel
-      .querySelector(".no-thanks")!
-      .addEventListener("click", () => panel.close());
+      image.className = "boost-icon";
+      const title = document.createElement("h3");
+      title.textContent = boost.title;
+      const description = document.createElement("p");
+      description.textContent = boost.text;
+      const status = document.createElement("small");
+      status.textContent = !boost.implemented ? "Feature not implemented"
+        : available ? "Verified offer available" : "Server verification unavailable";
+      const button = document.createElement("button");
+      button.textContent = boost.implemented ? "Watch Ad" : "Not available";
+      button.disabled = !boost.implemented || !available;
+      if (boost.kind && boost.implemented) {
+        button.dataset.boost = boost.kind;
+        button.onclick = () => {
+          panel.close();
+          request(boost.kind!);
+        };
+      }
+      card.append(image, title, description, status, button);
+      grid.append(card);
+    }
+    const dismiss = document.createElement("button");
+    dismiss.className = "no-thanks";
+    dismiss.textContent = "No thanks";
+    dismiss.onclick = () => panel.close();
+    panel.append(header, intro, grid, dismiss);
   };
   const close = () => {
     invitation?.remove();
