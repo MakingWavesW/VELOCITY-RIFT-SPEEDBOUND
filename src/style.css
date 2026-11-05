@@ -2706,3 +2706,279 @@ body.reduced-motion .compact-game-icon:active {
   transition: none !important;
   transform: none !important;
 }
+
+
+/* STAGE 5: exact approved 20-asset GUI board. These four game HUD docks
+   replace the old Stage 4 shortcut arrangement, not the original actions. */
+.menu {
+  display: none !important; /* all active controls have been safely reparented */
+}
+.approved-icon-dock {
+  position: fixed;
+  display: flex;
+  align-items: center;
+  pointer-events: auto;
+  z-index: 13;
+  width: max-content;
+  height: max-content;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: visible;
+}
+#settingsDock {
+  right: max(14px, env(safe-area-inset-right));
+  top: max(14px, env(safe-area-inset-top));
+}
+#rewardDock {
+  left: max(12px, env(safe-area-inset-left));
+  top: clamp(220px, 32dvh, 300px);
+  flex-direction: column;
+  gap: 9px;
+}
+#primaryGameDock {
+  left: 50%;
+  bottom: max(101px, calc(env(safe-area-inset-bottom) + 92px));
+  transform: translateX(-50%);
+  flex-direction: row;
+  justify-content: center;
+  gap: clamp(4px, .65vw, 9px);
+}
+#socialDock {
+  right: max(14px, env(safe-area-inset-right));
+  top: clamp(240px, 36dvh, 325px);
+  flex-direction: column;
+  gap: 10px;
+}
+.approved-icon-dock .compact-game-icon {
+  position: relative !important;
+  flex: 0 0 auto;
+  display: grid !important;
+  place-items: center;
+  box-sizing: border-box;
+  width: 66px !important;
+  height: 66px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+  max-width: none !important;
+  max-height: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  outline-offset: 3px;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  overflow: visible !important;
+  line-height: 1;
+  color: #fff0af;
+  filter: drop-shadow(0 3px 5px #0a1a3499);
+  transform: translateZ(0);
+  transition: transform 160ms ease, filter 160ms ease !important;
+  pointer-events: auto !important;
+  touch-action: manipulation;
+}
+#settingsDock .compact-game-icon { width: 60px !important; height: 60px !important; }
+#rewardDock .compact-game-icon { width: 70px !important; height: 70px !important; }
+#socialDock .compact-game-icon { width: 62px !important; height: 62px !important; }
+.approved-icon-dock .compact-game-icon > img {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
+  pointer-events: none !important;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.approved-icon-dock .compact-game-icon > i {
+  display: grid;
+  place-items: center;
+  font-size: 30px;
+  font-style: normal;
+  background: transparent !important;
+  width: 100%;
+  height: 100%;
+}
+.approved-icon-dock .compact-game-icon:not(:disabled):hover {
+  transform: scale(1.06) !important;
+  filter: brightness(1.08) drop-shadow(0 0 7px #69d8ff99) !important;
+}
+.approved-icon-dock .compact-game-icon:not(:disabled):active {
+  transform: scale(.94) !important;
+  transition-duration: 90ms !important;
+}
+.approved-icon-dock .compact-game-icon:focus-visible {
+  outline: 2px solid #fff1a9;
+  border-radius: 12px !important;
+}
+/* The old gear positioning used fixed coordinates; it is now a dock child. */
+#settingsDock .settings-launcher {
+  position: relative !important;
+  inset: auto !important;
+  transform: none !important;
+}
+.approved-icon-dock .compact-game-icon[hidden] {
+  display: none !important;
+}
+.approved-icon-dock .ready-badge {
+  position: absolute;
+  display: grid !important;
+  place-items: center;
+  top: -2px;
+  right: -2px;
+  width: 23px !important;
+  height: 23px !important;
+  font: 900 16px Nunito, sans-serif !important;
+  background: #e72939 !important;
+  color: #fff !important;
+  border: 2px solid #fff !important;
+  border-radius: 50% !important;
+  box-shadow: 0 2px 9px #821126b0;
+  pointer-events: none;
+  z-index: 3;
+}
+.approved-icon-dock .ready-badge[hidden] { display: none !important; }
+#rewardDock .reward-ready img {
+  animation: stage4-ready-bounce 3.5s ease-in-out infinite;
+}
+#beginnerGuide {
+  left: max(14px, env(safe-area-inset-left)) !important;
+  right: auto !important;
+  top: clamp(92px, 13dvh, 116px) !important;
+  width: 195px !important;
+}
+#journey {
+  right: max(96px, calc(env(safe-area-inset-right) + 92px)) !important;
+  top: clamp(270px, 41dvh, 370px) !important;
+  width: min(230px, 22vw) !important;
+}
+#roster {
+  right: max(14px, env(safe-area-inset-right)) !important;
+  top: 90px !important;
+}
+#connection { right: max(86px, calc(env(safe-area-inset-right) + 80px)) !important; }
+#originalUtilityActions { display: none !important; }
+body:not([data-media-state="GAMEPLAY"]) .approved-icon-dock {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+#approvedMenu {
+  color: #f3fbff;
+  background: linear-gradient(155deg,#10253f,#1e4262);
+  border: 2px solid #7fd3ff;
+  border-radius: 19px;
+  width: min(640px, 94vw);
+  max-height: 86dvh;
+  padding: clamp(16px, 3vw, 25px);
+  overflow-y: auto;
+  box-shadow: 0 20px 65px #030b21b3, 0 0 20px #64aaff55;
+}
+#approvedMenu .panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+#approvedMenu .panel-head h2 { margin: 0; font-size: clamp(18px, 3vw, 26px); }
+#approvedMenu .panel-head button {
+  color: #17334c;
+  background: #ffd784;
+  border: 0;
+  border-radius: 10px;
+  padding: 7px 14px;
+  font-size: 23px;
+}
+#approvedMenuContent { display: grid; gap: 11px; padding-top: 10px; }
+#approvedMenuContent p, #approvedMenuContent small { margin: 0; }
+.approved-menu-card {
+  border: 1px solid #79cbf6aa;
+  border-radius: 13px;
+  padding: 12px;
+  background: #ffffff0d;
+}
+.approved-menu-card h3 { color: #ffe4a5; margin: 0 0 7px; }
+.approved-menu-card small { color: #a6d9f5; }
+.approved-menu-action {
+  background: #a5ebff;
+  color: #12283f;
+  border-radius: 12px;
+  border: 1px solid #e6fcff;
+  font-weight: 900;
+  padding: 11px 15px;
+  min-height: 44px;
+}
+.live-room-players { margin: 0; padding-left: 23px; line-height: 1.75; }
+#boostCenter { width: min(1000px, 95vw); max-height: 88dvh; overflow-y: auto; }
+#boostCenter .approved-boost-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+#boostCenter .approved-boost-grid article {
+  min-width: 0;
+  padding: 11px;
+}
+#boostCenter .approved-boost-grid .boost-icon {
+  display: block;
+  width: 66px;
+  height: 66px;
+  margin: 0 auto 10px;
+  object-fit: contain;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+#boostCenter .approved-boost-grid h3 { font-size: 14px; line-height: 1.2; }
+#boostCenter .approved-boost-grid p { font-size: 11px; line-height: 1.4; }
+#boostCenter .approved-boost-grid small { display: block; margin: 6px 0; }
+#boostCenter .approved-boost-grid button { min-height: 38px; }
+@media (max-width: 1100px) and (orientation: landscape) {
+  #primaryGameDock .compact-game-icon { width: clamp(44px, 5vw, 60px) !important; height: clamp(44px, 5vw, 60px) !important; }
+  #rewardDock .compact-game-icon { width: clamp(44px, 6vw, 60px) !important; height: clamp(44px, 6vw, 60px) !important; }
+  #socialDock .compact-game-icon { width: clamp(44px, 5.6vw, 56px) !important; height: clamp(44px, 5.6vw, 56px) !important; }
+  #settingsDock .compact-game-icon { width: 54px !important; height: 54px !important; }
+  #rewardDock { gap: 7px; top: clamp(164px, 28dvh, 230px); }
+  #socialDock { top: clamp(190px, 34dvh, 265px); }
+  #primaryGameDock { bottom: max(88px, calc(env(safe-area-inset-bottom) + 78px)); gap: 5px; }
+  #beginnerGuide { width: 170px !important; top: 80px !important; }
+  #journey { right: 76px !important; width: min(195px, 24vw) !important; }
+  #boostCenter .approved-boost-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  #beginnerGuide { display: none !important; }
+  #rewardDock { top: max(48px, env(safe-area-inset-top)) !important; left: max(8px, env(safe-area-inset-left)); gap: 3px; }
+  #rewardDock .compact-game-icon,
+  #socialDock .compact-game-icon,
+  #settingsDock .compact-game-icon { width: 44px !important; height: 44px !important; }
+  #primaryGameDock .compact-game-icon { width: 44px !important; height: 44px !important; }
+  #primaryGameDock { bottom: max(74px, calc(env(safe-area-inset-bottom) + 70px)); gap: 4px; }
+  #socialDock { top: max(72px, calc(env(safe-area-inset-top) + 58px)); right: max(8px, env(safe-area-inset-right)); gap: 5px; }
+  #settingsDock { top: max(8px, env(safe-area-inset-top)); right: max(8px, env(safe-area-inset-right)); }
+  #roster, #journey, #beginnerGuide { display: none !important; }
+  #touch { left: max(66px, calc(env(safe-area-inset-left) + 56px)) !important; bottom: 23px !important; }
+  #jump { right: max(68px, calc(env(safe-area-inset-right) + 58px)) !important; bottom: 26px !important; }
+  #boostCenter .approved-boost-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  #boostCenter .approved-boost-grid article { padding: 7px; }
+  #boostCenter .approved-boost-grid .boost-icon { width: 44px; height: 44px; }
+  #boostCenter .approved-boost-grid p { font-size: 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .approved-icon-dock .compact-game-icon,
+  .approved-icon-dock .compact-game-icon:hover,
+  .approved-icon-dock .compact-game-icon:active,
+  #rewardDock .reward-ready img,
+  .approved-icon-dock .ready-badge {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+body.reduced-motion .approved-icon-dock .compact-game-icon,
+body.reduced-motion .approved-icon-dock .compact-game-icon:hover,
+body.reduced-motion .approved-icon-dock .compact-game-icon:active,
+body.reduced-motion #rewardDock .reward-ready img,
+body.reduced-motion .approved-icon-dock .ready-badge {
+  animation: none !important;
+  transition: none !important;
+}
