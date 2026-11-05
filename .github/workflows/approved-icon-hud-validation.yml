@@ -40,11 +40,11 @@ jobs:
       - name: Verify approved HUD placement and Boost popup
         run: node tests/stage4-browser.mjs
       - name: Capture connected desktop and landscape gameplay evidence
-        if: always()
+        if: github.event_name == 'workflow_dispatch'
         continue-on-error: true
         run: node tests/approved-hud-screenshots.mjs
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: github.event_name == 'workflow_dispatch'
         with:
           name: approved-20-icon-hud-screenshots
           path: artifacts/approved-hud/
