@@ -1,5 +1,6 @@
 import { addLandscape } from "./landscape";
 import { createAmbient } from "./ambient";
+import { addSunburstReference } from "./sunburstReference";
 import { createGLBCity } from "./glbCity";
 import { loadGLTF } from "../assets/gltf";
 import { daylight } from "../../shared/dayNight";
@@ -31,13 +32,13 @@ import {
 export function createWorld(scene: T.Scene) {
   const b = new Batch();
   const animated: T.Object3D[] = [];
-  b.box(0x75bd84, 0, -1.5, 0, 880, 3, 880);
-  b.box(0xf1d9a3, 0, -5, 0, 900, 5, 900);
+  b.box(0x69c78c, 0, -1.5, 0, 880, 3, 880);
+  b.box(0xf6e0ad, 0, -5, 0, 900, 5, 900);
   b.box(0x466b81, 0, -11, 0, 895, 10, 895);
   const water = new T.Mesh(
     new T.PlaneGeometry(5000, 5000),
     new T.MeshStandardMaterial({
-      color: 0x32b7cb,
+      color: 0x37c4df,
       roughness: 0.3,
       metalness: 0.35,
     }),
@@ -48,18 +49,18 @@ export function createWorld(scene: T.Scene) {
   // Broad continuous avenues and clear white shoulders.
   for (const x of [0, 190, -330, 330]) {
     b.box(0xe8f4e7, x, 0.01, 0, 17, 0.09, 870);
-    b.box(0x294158, x, 0.07, 0, 15, 0.09, 870);
+    b.box(0x344c63, x, 0.07, 0, 15, 0.09, 870);
   }
   for (const z of [0, 170, -330, 330]) {
     b.box(0xe8f4e7, 0, 0.01, z, 870, 0.09, 17);
-    b.box(0x294158, 0, 0.07, z, 870, 0.09, 15);
+    b.box(0x344c63, 0, 0.07, z, 870, 0.09, 15);
   }
   for (let i = -420; i <= 420; i += 14) {
     for (const x of [0, 190]) b.box(0xa7b8be, x, 0.13, i, 0.3, 0.02, 4);
     for (const z of [0, 170]) b.box(0xa7b8be, i, 0.13, z, 4, 0.02, 0.3);
   }
-  b.add(cylinder, 0xe9d8b6, 0, 0.12, 0, 34, 0.15, 34);
-  b.add(cylinder, 0xf5e8cd, 0, 0.22, 0, 30, 0.08, 30);
+  b.add(cylinder, 0xf5db9c, 0, 0.12, 0, 34, 0.15, 34);
+  b.add(cylinder, 0xfff0d0, 0, 0.22, 0, 30, 0.08, 30);
   for (let i = 0; i < 32; i++) {
     const a = (i * Math.PI) / 16;
     b.add(
@@ -370,6 +371,7 @@ export function createWorld(scene: T.Scene) {
     scene.add(gate);
   }
   addLandscape(scene, b);
+  const sunburstArt = addSunburstReference(scene, b);
   b.finish(scene);
   const city = createGLBCity(scene);
   let comfort = false;
@@ -423,12 +425,12 @@ export function createWorld(scene: T.Scene) {
   let night = 0,
     desired = 0;
   let autoCycle = true;
-  const skyDay = new T.Color(0x94d6ed),
+  const skyDay = new T.Color(0x82d0f3),
     skyNight = new T.Color(0x122443),
     skySunset = new T.Color(0xf4b38f),
     ambientDay = new T.Color(0xd3f0ff),
     ambientNight = new T.Color(0xa6bbff),
-    sunlight = new T.Color(0xffedce),
+    sunlight = new T.Color(0xfff0cc),
     moonlight = new T.Color(0xb7d4ff);
   scene.background = skyDay.clone();
   // The GLB city streams distant decoration at 105–520 world units.
@@ -461,6 +463,7 @@ export function createWorld(scene: T.Scene) {
     },
     dispose() {
       worldDisposed = true;
+      sunburstArt.dispose();
       rampRoot.removeFromParent();
       parkourMarkers.removeFromParent();
       markerGeometry.dispose();
@@ -511,6 +514,7 @@ export function createWorld(scene: T.Scene) {
       sun.position.set(x + 80, 120, z + 50);
       sun.target.position.set(x, 0, z);
       const ambientTime = comfort ? 0 : t;
+      sunburstArt.update(t, comfort, night);
       city.update(t, dt, x, z, night);
       particles.update(ambientTime, x, z, night);
       clouds.rotation.y = ambientTime * 0.001;
