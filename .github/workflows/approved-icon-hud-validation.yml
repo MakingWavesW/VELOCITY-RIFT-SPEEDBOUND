@@ -1,0 +1,41 @@
+name: Approved 20-Icon HUD Validation
+
+on:
+  push:
+    branches: [feature/approved-20-icon-hud]
+  workflow_dispatch:
+
+concurrency:
+  group: approved-icons-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test-and-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Build and stage selected GLB models
+        run: npm run build
+      - name: Start real server and Vite frontend
+        run: |
+          nohup npm run server >/tmp/rift-server.log 2>&1 &
+          nohup npm run dev -- --port 5173 --strictPort >/tmp/rift-frontend.log 2>&1 &
+          for attempt in $(seq 1 50); do
+            if curl -fsS http://127.0.0.1:2567/health >/dev/null && curl -fsS http://127.0.0.1:5173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/rift-server.log /tmp/rift-frontend.log
+          exit 1
+      - name: Gameplay and multiplayer regression tests
+        run: npm test
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Verify approved HUD placement and Boost popup
+        run: node tests/stage4-browser.mjs
