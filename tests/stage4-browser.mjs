@@ -96,7 +96,7 @@ try {
   const boostSources = await cards.locator("img").evaluateAll((images) =>
     images.map((img) => img.dataset.originalAsset));
   assert.deepEqual(boostSources, [8,9,10,11,12].map((n) =>
-    "/media/gui/" + String(n).padStart(2, "0") + "_" +
+    String(n).padStart(2, "0") + "_" +
     ({8:"Rewarded_Ad",9:"Ad_XP_Boost",10:"Ad_XP_Boost_Timer",
       11:"Ad_Speed_Boost",12:"Ad_Speed_Boost_Timer"}[n]) + ".png"));
   assert.equal(await cards.locator("button:not([disabled])").count(), 0,
