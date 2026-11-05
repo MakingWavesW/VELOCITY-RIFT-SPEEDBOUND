@@ -4,6 +4,10 @@ let desired: MediaState = "PLATFORM_STARTUP",
   paused = false,
   platformAudio = true;
 let introVideo: HTMLVideoElement | undefined;
+const INTRO_SOURCES = [
+  "/media/vyrnora-studios-logo-reveal.mp4",
+  "/media/studio-intro.mp4",
+] as const;
 const portraitTouch = () =>
   matchMedia("(orientation: portrait) and (pointer: coarse)").matches;
 function sync() {
@@ -48,7 +52,6 @@ export async function startup() {
   }
   const video = document.createElement("video");
   introVideo = video;
-  video.src = "/media/studio-intro.mp4";
   video.playsInline = true;
   video.preload = "auto";
   video.setAttribute("aria-label", "Vyrnora Studios intro");
@@ -61,16 +64,41 @@ export async function startup() {
   layer.append(permission, silent);
   await new Promise<void>((resolve) => {
     let finished = false;
+    let sourceIndex = 0;
     const finish = () => {
       if (finished) return;
       finished = true;
       video.pause();
+      video.onended = null;
+      video.onerror = null;
+      video.ontimeupdate = null;
       video.removeAttribute("src");
       video.load();
       introVideo = undefined;
       layer.remove();
       document.body.classList.remove("starting");
       resolve();
+    };
+    const showRetry = () => {
+      delete video.dataset.started;
+      layer.replaceChildren(permission, silent);
+      permission.textContent = "Tap to play intro";
+    };
+    const tryFallbackSource = () => {
+      if (finished) return;
+      if (sourceIndex < INTRO_SOURCES.length - 1) {
+        sourceIndex += 1;
+        video.src = INTRO_SOURCES[sourceIndex];
+        video.load();
+        if (video.dataset.started) {
+          void video.play().catch(() => {
+            if (!video.error) showRetry();
+          });
+        }
+        return;
+      }
+      // If neither local intro asset can be loaded, continue to the menu safely.
+      finish();
     };
     const play = async (muted: boolean) => {
       video.dataset.silent = String(muted);
@@ -83,19 +111,22 @@ export async function startup() {
       try {
         await video.play();
       } catch {
-        delete video.dataset.started;
-        layer.replaceChildren(permission, silent);
-        permission.textContent = "Tap to play intro";
+        if (!video.error) showRetry();
+        // A media-load failure is handled by tryFallbackSource.
       }
     };
     permission.onclick = () => void play(false);
     silent.onclick = () => void play(true);
     video.onended = finish;
-    video.onerror = finish;
+    video.onerror = tryFallbackSource;
     video.ontimeupdate = () => {
       if (video.duration - video.currentTime < 0.6)
         video.classList.add("intro-fade");
     };
+    // Prefer the newly supplied Vyrnora reveal. Keep the current intro as a safe
+    // fallback until the replacement MP4 is added to public/media on this branch.
+    video.src = INTRO_SOURCES[sourceIndex];
+    video.load();
   });
   setMediaState("MAIN_MENU");
   await platform.gameReady().catch(() => {});

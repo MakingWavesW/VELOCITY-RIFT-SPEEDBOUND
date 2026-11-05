@@ -1,0 +1,48 @@
+name: Sunburst Reference Environment
+
+on:
+  push:
+    branches: [feature/sunburst-reference-environment]
+  workflow_dispatch:
+
+concurrency:
+  group: sunburst-reference-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-tests-visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: TypeScript build and GLB manifest verification
+        run: npm run build
+      - name: Start real Colyseus and Vite
+        run: |
+          nohup npm run server >/tmp/sunburst-colyseus.log 2>&1 &
+          nohup npm run dev -- --port 5173 --strictPort >/tmp/sunburst-vite.log 2>&1 &
+          for attempt in $(seq 1 50); do
+            if curl -fsS http://127.0.0.1:2567/health >/dev/null && curl -fsS http://127.0.0.1:5173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/sunburst-colyseus.log /tmp/sunburst-vite.log
+          exit 1
+      - name: Unit and real multiplayer regression tests
+        run: npm test
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Capture actual reference-style Sunburst Plaza gameplay
+        run: node tests/sunburst-reference-browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sunburst-reference-gameplay
+          path: artifacts/sunburst-reference/
+          if-no-files-found: warn
+          retention-days: 14

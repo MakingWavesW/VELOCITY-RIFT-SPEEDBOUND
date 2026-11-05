@@ -166,7 +166,7 @@ export function createGLBCity(scene: T.Scene) {
       m.map = null;
       m.vertexColors = true;
     }
-    if (/leafsGreen/i.test(m.name)) m.color.setHex(0x42b77b);
+    if (/leafsGreen/i.test(m.name)) m.color.setHex(0x35ca82);
     if (/woodBark/i.test(m.name)) m.color.setHex(0x976a48);
     m.onBeforeCompile = (shader) => {
       shader.uniforms.cityTime = time;
