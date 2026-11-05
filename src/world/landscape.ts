@@ -16,18 +16,18 @@ export function addLandscape(scene: T.Scene, b: Batch) {
     );
     b.box(0xe0dcc5, s.x, 0.035, s.z + s.d / 2 + 3, s.w + 9, 0.025, 2.5);
   }
-  const garden = new T.Mesh(new T.CircleGeometry(100, 80), material(0x56a874));
+  const garden = new T.Mesh(new T.CircleGeometry(100, 80), material(0x50be86));
   garden.rotation.x = -Math.PI / 2;
   garden.position.set(-215, 0.022, 176);
   garden.scale.set(1, 1.12, 1);
   scene.add(garden);
-  const path = new T.Mesh(new T.RingGeometry(0.9, 1.1, 80), material(0xd9c895));
+  const path = new T.Mesh(new T.RingGeometry(0.9, 1.1, 80), material(0xf7dc9e));
   path.rotation.x = -Math.PI / 2;
   path.position.set(-210, 0.06, 170);
   path.scale.set(42, 44, 1);
   scene.add(path);
   // Keep the cross-garden avenue fully visible over the garden ground layer.
-  b.box(0x294158, -210, 0.08, 170, 220, 0.06, 15);
+  b.box(0x344c63, -210, 0.08, 170, 220, 0.06, 15);
   // Bloom beds sit outside the running ring, with clear openings at the road.
   for (let i = 0; i < 12; i++) {
     const a = (i * Math.PI) / 6,
