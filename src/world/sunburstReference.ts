@@ -51,11 +51,11 @@ export function addSunburstReference(scene: T.Scene, batch: Batch) {
   const gateGold = new T.MeshStandardMaterial({
     color: 0xffc652,
     emissive: 0xe88d21,
-    emissiveIntensity: 0.88,
+    emissiveIntensity: 1.12,
     roughness: 0.3,
     metalness: 0.2,
   });
-  const gateGeometry = new T.TorusGeometry(5.4, 0.3, 10, 72);
+  const gateGeometry = new T.TorusGeometry(7.85, 0.38, 10, 72);
   const gate = new T.Mesh(gateGeometry, gateGold);
   gate.name = "Golden Solar Arch";
   portal.add(gate);
@@ -68,7 +68,7 @@ export function addSunburstReference(scene: T.Scene, batch: Batch) {
     depthWrite: false,
     toneMapped: false,
   });
-  const auraGeometry = new T.TorusGeometry(5.85, 0.08, 6, 64);
+  const auraGeometry = new T.TorusGeometry(8.35, 0.11, 6, 72);
   const aquaHalo = new T.Mesh(auraGeometry, auraMaterial);
   aquaHalo.position.z = -0.18;
   portal.add(aquaHalo);
@@ -79,7 +79,7 @@ export function addSunburstReference(scene: T.Scene, batch: Batch) {
   const transform = new T.Object3D();
   for (let i = 0; i < 16; i++) {
     const angle = (i * Math.PI * 2) / 16;
-    transform.position.set(Math.cos(angle) * 6.5, Math.sin(angle) * 6.5, -0.15);
+    transform.position.set(Math.cos(angle) * 9.0, Math.sin(angle) * 9.0, -0.15);
     transform.rotation.set(0, 0, angle - Math.PI / 2);
     transform.scale.set(1, i % 2 ? 0.85 : 1.3, 1);
     transform.updateMatrix();
@@ -143,7 +143,7 @@ export function addSunburstReference(scene: T.Scene, batch: Batch) {
       rays.rotation.z = comfort ? 0 : Math.sin(time * 0.32) * 0.07;
       auraMaterial.opacity = 0.50 + night * 0.24 +
         (comfort ? 0 : Math.sin(phase * 1.5) * 0.05);
-      gateGold.emissiveIntensity = 0.85 + night * 0.25 +
+      gateGold.emissiveIntensity = 1.06 + night * 0.25 +
         (comfort ? 0 : Math.sin(phase * 1.2) * 0.1);
     },
     dispose() {
