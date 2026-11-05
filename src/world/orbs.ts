@@ -50,10 +50,10 @@ export function createOrbRenderer(scene: T.Scene) {
     geo,
     new T.PointsMaterial({
       map: texture,
-      size: 4.5,
+      size: 5.4,
       vertexColors: true,
       transparent: true,
-      opacity: 0.45,
+      opacity: 0.58,
       depthWrite: false,
       blending: T.AdditiveBlending,
       toneMapped: false,
